@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aspectj>
+	<aspects>
+		<aspect
+			name="com.imaginea.cassandra.triggers.StorageProxyTriggerAspect" />
+	</aspects>
+
+	<weaver options="-showWeaveInfo -verbose">
+		<include within="org.apache.cassandra.service.StorageProxy" />
+	</weaver>
+</aspectj>
