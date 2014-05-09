@@ -24,7 +24,7 @@ import org.apache.cassandra.utils.ByteBufferUtil
 import scala.language.implicitConversions
 import java.util.Date
 import java.util.UUID
-import org.apache.cassandra.cql.jdbc.JdbcDecimal
+import org.apache.cassandra.db.marshal.DecimalType
 import java.net.InetAddress
 import com.datastax.driver.core.DataType
 import java.math.BigInteger
@@ -53,7 +53,7 @@ object RichByteBuffer {
 
   implicit def ByteBuffer2ByteArray(buffer: ByteBuffer): Array[Byte] = ByteBufferUtil.getArray(buffer)
 
-  implicit def ByteBuffer2BigDecimal(buffer: ByteBuffer): BigDecimal = JdbcDecimal.instance.compose(buffer)
+  implicit def ByteBuffer2BigDecimal(buffer: ByteBuffer): BigDecimal = DecimalType.instance.compose(buffer)
 
   implicit def ByteBuffer2BigInteger(buffer: ByteBuffer): BigInteger = new BigInteger(ByteBufferUtil.getArray(buffer))
 
@@ -111,7 +111,7 @@ object RichByteBuffer {
 
   implicit def ByteArray2ByteBuffer(bytes: Array[Byte]): ByteBuffer = ByteBuffer.wrap(bytes)
 
-  implicit def BigDecimal2ByteBuffer(bigDec: BigDecimal): ByteBuffer = JdbcDecimal.instance.decompose(bigDec.bigDecimal)
+  implicit def BigDecimal2ByteBuffer(bigDec: BigDecimal): ByteBuffer = DecimalType.instance.decompose(bigDec.bigDecimal)
 
   implicit def BigInteger2ByteBuffer(bigInt: BigInteger): ByteBuffer = bigInt.toByteArray
 

@@ -8,7 +8,7 @@ object CalliopeBuild extends Build {
 
   lazy val VERSION = "0.9.0-U1-" + (if (USE_CASV2) "C2-EA" else "EA")
 
-  lazy val CAS_VERSION = if (USE_CASV2) "2.0.5" else "1.2.16"
+  lazy val CAS_VERSION = if (USE_CASV2) "2.0.7" else "1.2.16"
 
   lazy val THRIFT_VERSION = if (USE_CASV2) "0.9.1" else "0.7.0"
 
