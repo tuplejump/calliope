@@ -11,6 +11,8 @@ This assumes you have a working Spark and Cassandra setup. Ideally you would ins
 
 Download the released jar, for  and add it to your Spark shell classpath and the workers using sc.addJar, or if you build Spark from trunk or using a version newer than Spark 0.7.2 you can use the ADD_JARS environment variable to do this.
 
+## Releases
+
 ### Cassandra 1.2.x
 
 You can download Calliope from for Spark v0.8.1 [here](http://bit.ly/1mUWF39) and for Spark v0.9.0 [here](http://bit.ly/1c8CdHq).
@@ -26,10 +28,53 @@ If you are using Spark v0.8.x, let us know and we will release a build against i
 To use this you will have to add [cassandra-all 2.0](http://central.maven.org/maven2/org/apache/cassandra/cassandra-all/2.0.5/cassandra-all-2.0.5.jar), [cassandra-thrift 2.0](http://central.maven.org/maven2/org/apache/cassandra/cassandra-thrift/2.0.4/) and [libthrift 0.9.1](http://central.maven.org/maven2/org/apache/thrift/libthrift/0.9.1/libthrift-0.9.1.jar).
 
 
-
 ## Using it in your project
 
 Add Calliope as dependency to your project build file.
+
+### Snapshot Build for Spark 1.0.0 and Cassandra >= 2.0.7
+
+*Note:* Though all the functionality in past releases works, the new ffunctionality introduced in this release is still in development and not frozen.
+
+#### Maven Project
+
+This only works with Cassandra 2.0 and you will need to enable Sonatype Snapshot repository. 
+
+```xml
+ <repositories>
+   <repository>
+     <id>snapshots-repo</id>
+     <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+     <releases><enabled>false</enabled></releases>
+     <snapshots><enabled>true</enabled></snapshots>
+   </repository>
+ </repositories>
+
+```
+
+and add dependency to Calliope release 0.9.4-EA-SNAPSHOT,
+
+```xml
+
+  <dependency>
+    <groupId>com.tuplejump</groupId>
+    <artifactId>calliope_2.10</artifactId>
+    <version>0.9.4-EA-SNAPSHOT</version>
+  </dependency>
+
+```
+
+#### SBT Project
+
+In SBT you can do the same with these two lines,
+
+```scala
+
+resolvers += Resolver.sonatypeRepo("snapshots")
+
+libraryDependencies += "com.tuplejump" %% "calliope_2.10" % "0.9.4-EA-SNAPSHOT"
+
+```
 
 
 ### Add to Maven
