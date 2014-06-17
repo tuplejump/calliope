@@ -72,7 +72,7 @@ In SBT you can do the same with these two lines,
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 
-libraryDependencies += "com.tuplejump" %% "calliope_2.10" % "0.9.4-EA-SNAPSHOT"
+libraryDependencies += "com.tuplejump" %% "calliope" % "0.9.4-EA-SNAPSHOT"
 
 ```
 
