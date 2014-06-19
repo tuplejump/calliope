@@ -56,7 +56,7 @@ object RichByteBuffer {
 
   implicit def ByteBuffer2ByteArray(buffer: ByteBuffer): Array[Byte] = ByteBufferUtil.getArray(buffer)
 
-  implicit def ByteBuffer2BigDecimal(buffer: ByteBuffer): BigDecimal = DataType.decimal().deserialize(buffer).asInstanceOf[BigDecimal]
+  implicit def ByteBuffer2BigDecimal(buffer: ByteBuffer): BigDecimal = DataType.decimal().deserialize(buffer).asInstanceOf[java.math.BigDecimal]
 
   implicit def ByteBuffer2BigInteger(buffer: ByteBuffer): BigInteger = new BigInteger(ByteBufferUtil.getArray(buffer))
 
