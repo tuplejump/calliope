@@ -116,7 +116,7 @@ object RichByteBuffer {
 
   implicit def ByteArray2ByteBuffer(bytes: Array[Byte]): ByteBuffer = ByteBuffer.wrap(bytes)
 
-  implicit def BigDecimal2ByteBuffer(bigDec: BigDecimal): ByteBuffer = DataType.decimal().serialize(bigDec)
+  implicit def BigDecimal2ByteBuffer(bigDec: BigDecimal): ByteBuffer = DataType.decimal().serialize(bigDec.bigDecimal)
 
   implicit def BigInteger2ByteBuffer(bigInt: BigInteger): ByteBuffer = bigInt.toByteArray
 
