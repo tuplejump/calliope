@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.tuplejump.calliope.hadoop.AbstractColumnFamilyOutputFormat;
 import com.tuplejump.calliope.hadoop.AbstractColumnFamilyRecordWriter;
 import com.tuplejump.calliope.hadoop.ConfigHelper;
 import com.tuplejump.calliope.hadoop.HadoopCompat;
@@ -103,6 +104,11 @@ final class CqlRecordWriter extends AbstractColumnFamilyRecordWriter<Map<String,
         try
         {
             Cassandra.Client client = ConfigHelper.getClientFromOutputAddressList(conf);
+            client.set_keyspace(ConfigHelper.getOutputKeyspace(conf));
+            String user = ConfigHelper.getOutputKeyspaceUserName(conf);
+            String password = ConfigHelper.getOutputKeyspacePassword(conf);
+            if ((user != null) && (password != null))
+                AbstractColumnFamilyOutputFormat.login(user, password, client);
             retrievePartitionKeyValidator(client);
             String cqlQuery =  CqlConfigHelper.getOutputCql(conf).trim();
             if (cqlQuery.toLowerCase().startsWith("insert"))
@@ -274,6 +280,8 @@ final class CqlRecordWriter extends AbstractColumnFamilyRecordWriter<Map<String,
                     }
                 }
             }
+            // close all our connections once we are done.
+            closeInternal();
         }
 
         /** get prepared statement id from cache, otherwise prepare it from Cassandra server*/

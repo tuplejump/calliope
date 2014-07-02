@@ -362,11 +362,17 @@ public class CqlRecordReader extends RecordReader<Long, Row>
         }
 
         private Iterator<Row> getNextRange() {
-            //if (logger.isDebugEnabled())
-            logger.debug(String.format("Processing new token range. %d more to go!", tokenRanges.length - currentRange));
+            if (logger.isDebugEnabled())
+                logger.debug(String.format("Processing new token range. %d more to go!", tokenRanges.length - currentRange));
 
             TokenRangeHolder range = tokenRanges[currentRange];
-            ResultSet rs = session.execute(cqlQuery, validatorType.compose(validatorType.fromString(range.getStartToken())), validatorType.compose(validatorType.fromString(range.getEndToken())));
+
+            Object startToken = validatorType.compose(validatorType.fromString(range.getStartToken()));
+            Object endToken = validatorType.compose(validatorType.fromString(range.getEndToken()));
+
+            logger.info("Fetching rows with Query: " + cqlQuery + "in range start: [" + startToken + "] + and end: [" + endToken + "]");
+
+            ResultSet rs = session.execute(cqlQuery, startToken, endToken);
             for (ColumnMetadata meta : cluster.getMetadata().getKeyspace(keyspace).getTable(cfName).getPartitionKey())
                 partitionBoundColumns.put(meta.getName(), Boolean.TRUE);
 
@@ -398,7 +404,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
             }
 
             if (logger.isDebugEnabled()) {
-                logger.info(String.format("Got new row. Row # %d of total # %d", totalRead, totalRowCount));
+                logger.debug(String.format("Got new row. Row # %d of total # %d", totalRead, totalRowCount));
             }
 
             Map<String, ByteBuffer> keyColumns = new HashMap<String, ByteBuffer>();

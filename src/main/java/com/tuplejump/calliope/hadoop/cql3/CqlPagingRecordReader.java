@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.CompositeType;
 import org.apache.cassandra.db.marshal.LongType;
+import org.apache.cassandra.db.marshal.ReversedType;
 import org.apache.cassandra.db.marshal.TypeParser;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -709,6 +710,20 @@ public class CqlPagingRecordReader extends RecordReader<Map<String, ByteBuffer>,
         else
         {
             partitionBoundColumns.get(0).validator = keyValidator;
+        }
+
+        Column rawComparator = cqlRow.columns.get(3);
+        String comparator = ByteBufferUtil.string(ByteBuffer.wrap(rawComparator.getValue()));
+        logger.debug("comparator: {}", comparator);
+        AbstractType comparatorValidator = parseType(comparator);
+        if (comparatorValidator instanceof CompositeType)
+        {
+            for (int i = 0; i < clusterColumns.size(); i++)
+                clusterColumns.get(i).reversed = (((CompositeType) comparatorValidator).types.get(i) instanceof ReversedType);
+        }
+        else if (comparatorValidator instanceof ReversedType)
+        {
+            clusterColumns.get(0).reversed = true;
         }
     }
 
