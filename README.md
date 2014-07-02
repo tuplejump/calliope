@@ -8,6 +8,45 @@ We hope Calliope will also be the muse for your epic data poetry!
 
 For more information visit - http://tuplejump.github.com/calliope
 
+## SNAPSHOT BUILD FOR SPARK 1.0.0
+
+This only works with Cassandra 2.0 and you will need to enable Sonatype Snapshot repository 
+
+```xml
+ <repositories>
+   <repository>
+     <id>snapshots-repo</id>
+     <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+     <releases><enabled>false</enabled></releases>
+     <snapshots><enabled>true</enabled></snapshots>
+   </repository>
+ </repositories>
+
+```
+
+and add dependency to Calliope release 0.9.4-EA-SNAPSHOT,
+
+```xml
+
+  <dependency>
+    <groupId>com.tuplejump</groupId>
+    <artifactId>calliope_2.10</artifactId>
+    <version>0.9.4-EA-SNAPSHOT</version>
+  </dependency>
+
+```
+
+In SBT you can do the same with these two lines,
+
+```scala
+
+resolvers += Resolver.sonatypeRepo("snapshots")
+
+libraryDependencies += "com.tuplejump" %% "calliope" % "0.9.4-EA-SNAPSHOT"
+
+```
+
+
 ## Download Binary
 
 You can download the library from for Spark v0.8.1 [here](http://bit.ly/1mUWF39) and for Spark v0.9.0 [here](http://bit.ly/1c8CdHq).
