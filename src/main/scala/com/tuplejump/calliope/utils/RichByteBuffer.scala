@@ -142,5 +142,21 @@ object RichByteBuffer {
 
   implicit def ByteBuffer2MapSS(buffer: ByteBuffer): Map[String, String] = DataType.map(DataType.text(), DataType.text()).deserialize(buffer).asInstanceOf[java.util.Map[String, String]].asScala.toMap
 
+
+  implicit def StringS2ByteBuffer(ss: Set[String]): ByteBuffer =
+    DataType.set(DataType.text()).serialize(ss.asJava)
+
+  implicit def ByteBuffer2StringS(buffer: ByteBuffer): Set[String] =
+    DataType.set(DataType.text()).deserialize(buffer)
+      .asInstanceOf[java.util.Set[String]].asScala.toSet
+
+
+  implicit def ListS2ByteBuffer(ls: List[String]): ByteBuffer =
+    DataType.list(DataType.text()).serialize(ls.asJava)
+
+  implicit def ByteBuffer2ListS(buffer: ByteBuffer): List[String] =
+    DataType.list(DataType.text()).deserialize(buffer)
+      .asInstanceOf[java.util.List[String]].asScala.toList
+
 }
 

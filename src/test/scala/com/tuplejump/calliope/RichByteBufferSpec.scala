@@ -88,5 +88,25 @@ class RichByteBufferSpec extends FunSpec with ShouldMatchers with MustMatchers {
       p._2 must be(10)
     }
 
+    it("should add implicit conversion of Set[String] to ByteBuffer and vise versa") {
+      val origSs = Set("foo", "bar")
+
+      val bb: ByteBuffer = origSs
+
+      val newSs: Set[String] = bb
+
+      newSs must equal(origSs)
+    }
+
+    it("should add implicit conversion of List[String] to ByteBuffer and vise versa") {
+      val origLs = List("foo", "bar")
+
+      val bb: ByteBuffer = origLs
+
+      val newLs: List[String] = bb
+
+      newLs must equal(origLs)
+    }
+
   }
 }
