@@ -158,5 +158,39 @@ object RichByteBuffer {
     DataType.list(DataType.text()).deserialize(buffer)
       .asInstanceOf[java.util.List[String]].asScala.toList
 
+
+  /* Conversions for Option */
+
+  implicit def ByteBuffer2OptionString(buffer: ByteBuffer): Option[String] =
+    buffer match {
+      case null => None // Avoid implicitly converting a null into a
+                        // Double 'cause that doesn't work.
+      case _    => Some[String](buffer)
+    }
+
+  implicit def OptionString2ByteBuffer(maybeStr: Option[String]): ByteBuffer =
+    maybeStr match {
+      case None => null: ByteBuffer // Avoid implicitly coverting a
+                                    // null to a ByteBuffer 'cause
+                                    // that doesn't work.
+      case str  => str.getOrElse[String]("")
+    }
+
+
+  implicit def ByteBuffer2OptionDouble(buffer: ByteBuffer): Option[Double] =
+    buffer match {
+      case null => None // Avoid implicitly converting a null into a
+                        // Double 'cause that doesn't work.
+      case _    => Some[Double](buffer)
+    }
+
+  implicit def OptionDouble2ByteBuffer(maybeDbl: Option[Double]): ByteBuffer =
+    maybeDbl match {
+      case None => null: ByteBuffer // Avoid implicitly coverting a
+                                    // null to a ByteBuffer 'cause
+                                    // that doesn't work.
+      case dbl  => dbl.getOrElse[Double](0D)
+    }
+
 }
 
