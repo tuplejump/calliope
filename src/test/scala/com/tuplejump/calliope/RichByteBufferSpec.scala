@@ -108,5 +108,48 @@ class RichByteBufferSpec extends FunSpec with ShouldMatchers with MustMatchers {
       newLs must equal(origLs)
     }
 
+    it("should add implicit conversion of non-empty Option[String] to ByteBuffer and vise versa") {
+      val orig = Some("foo")
+
+      val bb: ByteBuffer = orig
+
+      val copy: Option[String] = bb
+
+      copy must equal(orig)
+    }
+
+    it("should add implicit conversion of empty Option[String] to ByteBuffer and vise versa") {
+      val orig: Option[String] = None
+
+      val bb: ByteBuffer = orig
+
+      bb must be(null)
+
+      val copy: Option[String] = bb
+
+      copy must be(None)
+    }
+
+    it("should add implicit conversion of non-empty Option[Double] to ByteBuffer and vise versa") {
+      val orig = Some(1D)
+
+      val bb: ByteBuffer = orig
+
+      val copy: Option[Double] = bb
+
+      copy must equal(orig)
+    }
+
+    it("should add implicit conversion of empty Option[Double] to ByteBuffer and vise versa") {
+      val orig: Option[Double] = None
+
+      val bb: ByteBuffer = orig
+
+      bb must be(null)
+
+      val copy: Option[Double] = bb
+
+      copy must be(None)
+    }
   }
 }
