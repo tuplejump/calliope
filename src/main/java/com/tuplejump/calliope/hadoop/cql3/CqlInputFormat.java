@@ -60,12 +60,21 @@ public class CqlInputFormat extends AbstractColumnFamilyInputFormat<Long, Row> {
 
     public RecordReader<Long, Row> getRecordReader(org.apache.hadoop.mapred.InputSplit split, JobConf jobConf, final Reporter reporter)
             throws IOException {
-        TaskAttemptContext tac = new TaskAttemptContext(jobConf, TaskAttemptID.forName(jobConf.get(MAPRED_TASK_ID))) {
+        TaskAttemptContext tac = HadoopCompat.newMapContext(
+                jobConf,
+                TaskAttemptID.forName(jobConf.get(MAPRED_TASK_ID)),
+                null,
+                null,
+                null,
+                new ReporterWrapper(reporter),
+                null);
+
+                /*new TaskAttemptContext(jobConf, TaskAttemptID.forName(jobConf.get(MAPRED_TASK_ID))) {
             @Override
             public void progress() {
                 reporter.progress();
             }
-        };
+        }; */
 
         CqlRecordReader recordReader = new CqlRecordReader();
         recordReader.initialize((org.apache.hadoop.mapreduce.InputSplit) split, tac);
