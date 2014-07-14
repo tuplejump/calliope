@@ -5,6 +5,13 @@ import org.apache.cassandra.utils.ByteBufferUtil
 import org.scalatest.FunSpec
 import org.scalatest.matchers.{MustMatchers, ShouldMatchers}
 import com.tuplejump.calliope.utils.RichByteBuffer
+import java.math.BigInteger
+import org.joda.time.DateTime
+import java.util.Date
+import java.util.UUID
+import java.net.InetAddress
+import scala.reflect._
+
 
 class RichByteBufferSpec extends FunSpec with ShouldMatchers with MustMatchers {
   describe("RichByteBuffer") {
@@ -108,48 +115,47 @@ class RichByteBufferSpec extends FunSpec with ShouldMatchers with MustMatchers {
       newLs must equal(origLs)
     }
 
-    it("should add implicit conversion of non-empty Option[String] to ByteBuffer and vise versa") {
-      val orig = Some("foo")
-
-      val bb: ByteBuffer = orig
-
-      val copy: Option[String] = bb
-
-      copy must equal(orig)
+    def verifyNonEmptyOptionConversion[A](typeName: String, orig: A)(implicit s: Option[A] => ByteBuffer, d: ByteBuffer => Option[A]) = {
+      it(s"should add implicit conversion of non-empty Option[${typeName}] to ByteBuffer and vise versa") {
+        val bb: ByteBuffer = Some(orig)
+        val copy: Option[A] = bb
+        copy must equal(Some(orig))
+      }
     }
 
-    it("should add implicit conversion of empty Option[String] to ByteBuffer and vise versa") {
-      val orig: Option[String] = None
+    def verifyEmptyOptionConversion[A](typeName: String)(implicit s: Option[A] => ByteBuffer, d: ByteBuffer => Option[A]) =
+      it(s"should add implicit conversion of empty Option[${typeName}] to ByteBuffer and vise versa") {
+        val orig: Option[A] = None
+        val bb: ByteBuffer = orig
+        bb must be(null)
+        val copy: Option[A] = bb
+        copy must be(None)
+      }
 
-      val bb: ByteBuffer = orig
+    def verifyOptionConversion[A](origValue: A)(implicit s: Option[A] => ByteBuffer, d: ByteBuffer => Option[A]) = {
+      val typeName = origValue.getClass.getName
 
-      bb must be(null)
-
-      val copy: Option[String] = bb
-
-      copy must be(None)
+      verifyEmptyOptionConversion[A](typeName)
+      verifyNonEmptyOptionConversion[A](typeName, origValue)
     }
 
-    it("should add implicit conversion of non-empty Option[Double] to ByteBuffer and vise versa") {
-      val orig = Some(1D)
+    verifyOptionConversion[String]("foo")
 
-      val bb: ByteBuffer = orig
+    verifyOptionConversion[Boolean](true)
 
-      val copy: Option[Double] = bb
+    verifyOptionConversion[Int](1)
+    verifyOptionConversion[Long](1L)
+    verifyOptionConversion[BigInteger](new BigInteger("1"))
 
-      copy must equal(orig)
-    }
+    verifyOptionConversion[Float](1.1F)
+    verifyOptionConversion[Double](1.1D)
+    verifyOptionConversion[BigDecimal](BigDecimal(java.math.BigDecimal.ONE))
 
-    it("should add implicit conversion of empty Option[Double] to ByteBuffer and vise versa") {
-      val orig: Option[Double] = None
+    verifyOptionConversion[Date](new Date())
+    verifyOptionConversion[DateTime](new DateTime())
 
-      val bb: ByteBuffer = orig
+    verifyOptionConversion[UUID](UUID.randomUUID)
 
-      bb must be(null)
-
-      val copy: Option[Double] = bb
-
-      copy must be(None)
-    }
+    verifyOptionConversion[InetAddress](InetAddress.getLocalHost)
   }
 }
