@@ -160,37 +160,57 @@ object RichByteBuffer {
 
 
   /* Conversions for Option */
+  def Option2ByteBuffer[A](maybe: Option[A])(implicit serialize: A => ByteBuffer): ByteBuffer =
+    maybe match {
+      case None => null: ByteBuffer // Avoid trying to serialize an
+                                    // empty value because that
+                                    // doesn't work.
+      case Some(really) => serialize(really)
+    }
 
-  implicit def ByteBuffer2OptionString(buffer: ByteBuffer): Option[String] =
+  def ByteBuffer2Option[A](buffer: ByteBuffer)(implicit deserialize: ByteBuffer => A): Option[A] =
     buffer match {
-      case null => None // Avoid implicitly converting a null into a
-                        // Double 'cause that doesn't work.
-      case _    => Some[String](buffer)
-    }
-
-  implicit def OptionString2ByteBuffer(maybeStr: Option[String]): ByteBuffer =
-    maybeStr match {
-      case None => null: ByteBuffer // Avoid implicitly coverting a
-                                    // null to a ByteBuffer 'cause
-                                    // that doesn't work.
-      case str  => str.getOrElse[String]("")
+      case null => None // Avoid trying to deserialize a null because
+                        // that doesn't work
+      case _ => Some[A](deserialize(buffer))
     }
 
 
-  implicit def ByteBuffer2OptionDouble(buffer: ByteBuffer): Option[Double] =
-    buffer match {
-      case null => None // Avoid implicitly converting a null into a
-                        // Double 'cause that doesn't work.
-      case _    => Some[Double](buffer)
-    }
+  implicit def OptionString2ByteBuffer = Option2ByteBuffer[String] _
+  implicit def ByteBuffer2OptionString = ByteBuffer2Option[String] _
 
-  implicit def OptionDouble2ByteBuffer(maybeDbl: Option[Double]): ByteBuffer =
-    maybeDbl match {
-      case None => null: ByteBuffer // Avoid implicitly coverting a
-                                    // null to a ByteBuffer 'cause
-                                    // that doesn't work.
-      case dbl  => dbl.getOrElse[Double](0D)
-    }
+  implicit def OptionBoolean2ByteBuffer = Option2ByteBuffer[Boolean] _
+  implicit def ByteBuffer2OptionBoolean = ByteBuffer2Option[Boolean] _
+
+  implicit def OptionInt2ByteBuffer = Option2ByteBuffer[Int] _
+  implicit def ByteBuffer2OptionInt = ByteBuffer2Option[Int] _
+
+  implicit def OptionLong2ByteBuffer = Option2ByteBuffer[Long] _
+  implicit def ByteBuffer2OptionLong = ByteBuffer2Option[Long] _
+
+  implicit def OptionBigInteger2ByteBuffer = Option2ByteBuffer[BigInteger] _
+  implicit def ByteBuffer2OptionBigInteger = ByteBuffer2Option[BigInteger] _
+
+  implicit def OptionFloat2ByteBuffer = Option2ByteBuffer[Float] _
+  implicit def ByteBuffer2OptionFloat = ByteBuffer2Option[Float] _
+
+  implicit def OptionDouble2ByteBuffer = Option2ByteBuffer[Double] _
+  implicit def ByteBuffer2OptionDouble = ByteBuffer2Option[Double] _
+
+  implicit def OptionBigDecimal2ByteBuffer = Option2ByteBuffer[BigDecimal] _
+  implicit def ByteBuffer2OptionBigDecimal = ByteBuffer2Option[BigDecimal] _
+
+  implicit def OptionDate2ByteBuffer = Option2ByteBuffer[Date] _
+  implicit def ByteBuffer2OptionDate = ByteBuffer2Option[Date] _
+
+  implicit def OptionDateTime2ByteBuffer = Option2ByteBuffer[DateTime] _
+  implicit def ByteBuffer2OptionDateTime = ByteBuffer2Option[DateTime] _
+
+  implicit def OptionUuid2ByteBuffer = Option2ByteBuffer[UUID] _
+  implicit def ByteBuffer2OptionUuid = ByteBuffer2Option[UUID] _
+
+  implicit def OptionInetAddress2ByteBuffer = Option2ByteBuffer[InetAddress] _
+  implicit def ByteBuffer2OptionInetAddress = ByteBuffer2Option[InetAddress] _
 
 }
 
