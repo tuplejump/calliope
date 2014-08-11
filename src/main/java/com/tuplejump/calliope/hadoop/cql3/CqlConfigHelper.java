@@ -378,10 +378,11 @@ public class CqlConfigHelper {
         if (minSimultaneousRequests.isPresent())
             poolingOptions.setMinSimultaneousRequestsPerConnectionThreshold(HostDistance.LOCAL, minSimultaneousRequests.get());
 
-        poolingOptions.setCoreConnectionsPerHost(HostDistance.REMOTE, 0)
+        poolingOptions
+                .setMinSimultaneousRequestsPerConnectionThreshold(HostDistance.REMOTE, 0)
+                .setCoreConnectionsPerHost(HostDistance.REMOTE, 0)
                 .setMaxConnectionsPerHost(HostDistance.REMOTE, 0)
-                .setMaxSimultaneousRequestsPerConnectionThreshold(HostDistance.REMOTE, 0)
-                .setMinSimultaneousRequestsPerConnectionThreshold(HostDistance.REMOTE, 0);
+                .setMaxSimultaneousRequestsPerConnectionThreshold(HostDistance.REMOTE, 0);
 
         return poolingOptions;
     }
@@ -459,6 +460,11 @@ public class CqlConfigHelper {
                 if (host.getAddress().getHostName().equals(stickHost))
                     origHost = host;
                 liveRemoteHosts.add(host);
+            }
+
+            @Override
+            public void onSuspected(Host host) {
+                //ignoring this as asDown will be called when the node is really down
             }
 
             @Override

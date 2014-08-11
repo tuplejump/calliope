@@ -1,8 +1,10 @@
 package com.tuplejump.calliope.native
 
+import com.tuplejump.calliope.hadoop.ConfigHelper
+
 import scala.reflect.ClassTag
 import org.apache.spark._
-import com.tuplejump.calliope.CasBuilder
+import com.tuplejump.calliope.{NativeCasBuilder, CasBuilder}
 import org.apache.spark.rdd.RDD
 import com.tuplejump.calliope.utils.{CassandraPartition, SparkHadoopMapReduceUtil}
 import org.apache.hadoop.mapreduce.{InputSplit, TaskAttemptID, JobID}

@@ -159,6 +159,7 @@ public abstract class AbstractColumnFamilyInputFormat<K, Y> extends InputFormat<
                     List<ColumnFamilySplit> allSplits = futureInputSplits.get();
                     splits.addAll(allSplits);
                 } catch (Exception e) {
+                    logger.warn("Error reading format", e);
                     throw new IOException("Could not get input splits", e);
                 }
             }

@@ -1,35 +1,35 @@
-import sbt._
 import sbt.Keys._
+import sbt._
 
 object
 CalliopeBuild extends Build {
 
   lazy val VERSION = "0.9.4-EA-SNAPSHOT"
 
-  lazy val CAS_VERSION = "2.0.7"
+  lazy val CAS_VERSION = "2.0.9"
 
   lazy val THRIFT_VERSION = "0.9.1"
 
   lazy val SCALA_VERSION = "2.10.4" //Updating to 2.10.4 cause of Spark/SBT issue Spark [https://issues.apache.org/jira/browse/SPARK-1923]
 
-  lazy val DS_DRIVER_VERSION = "2.0.2"
+  lazy val DS_DRIVER_VERSION = "2.0.4"
 
   lazy val PARADISE_VERSION = "2.0.0"
 
-  lazy val SPARK_VERSION = "1.0.0"
+  lazy val SPARK_VERSION = "1.0.2"
 
   lazy val pom = {
-      <scm>
-        <url>git@github.com:tuplejump/calliope.git</url>
-        <connection>scm:git:git@github.com:tuplejump/calliope.git</connection>
-      </scm>
-        <developers>
-          <developer>
-            <id>milliondreams</id>
-            <name>Rohit Rai</name>
-            <url>https://twitter.com/milliondreams</url>
-          </developer>
-        </developers>
+    <scm>
+      <url>git@github.com:tuplejump/calliope.git</url>
+      <connection>scm:git:git@github.com:tuplejump/calliope.git</connection>
+    </scm>
+      <developers>
+        <developer>
+          <id>milliondreams</id>
+          <name>Rohit Rai</name>
+          <url>https://twitter.com/milliondreams</url>
+        </developer>
+      </developers>
   }
 
   lazy val calliope = {
@@ -41,7 +41,8 @@ CalliopeBuild extends Build {
       "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive(),
       "org.apache.spark" %% "spark-core" % SPARK_VERSION % "provided" exclude("org.apache.hadoop", "hadoop-core"),
       "org.apache.spark" %% "spark-streaming" % SPARK_VERSION % "provided",
-      "org.apache.hadoop" % "hadoop-core" % "1.0.4" % "provided",
+      "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided",
+      "org.apache.hadoop" % "hadoop-client" % "2.4.0" % "provided",
       "com.github.nscala-time" %% "nscala-time" % "1.0.0",
       "org.scalatest" %% "scalatest" % "1.9.1" % "test"
     )
@@ -93,6 +94,10 @@ CalliopeBuild extends Build {
       organizationHomepage := Some(url("http://www.tuplejump.com")),
 
       resolvers ++= Seq("Akka Repository" at "http://repo.akka.io/releases/")
+
+      //javaOptions in Test := Seq("-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"),
+
+      //fork in Test := true
     )
 
     Project(
