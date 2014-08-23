@@ -370,7 +370,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
             Object startToken = validatorType.compose(validatorType.fromString(range.getStartToken()));
             Object endToken = validatorType.compose(validatorType.fromString(range.getEndToken()));
 
-            logger.debug("Fetching rows with Query: " + cqlQuery + "in range start: [" + startToken + "] + and end: [" + endToken + "]");
+            logger.debug("Fetching rows with Query: " + cqlQuery + " in range start: [" + startToken + "] + and end: [" + endToken + "]");
 
             ResultSet rs = session.execute(cqlQuery, startToken, endToken);
             for (ColumnMetadata meta : cluster.getMetadata().getKeyspace(keyspace).getTable(cfName).getPartitionKey())
@@ -382,7 +382,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
         }
 
         private Row getNextRow() {
-            if (currentRangeRows == null || !currentRangeRows.hasNext()) {
+            if ((currentRangeRows == null || !currentRangeRows.hasNext()) && tokenRanges.length > currentRange) {
                 do {
                     currentRangeRows = getNextRange();
                 } while (!currentRangeRows.hasNext() && tokenRanges.length > currentRange);
