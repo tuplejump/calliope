@@ -109,3 +109,26 @@ CREATE TABLE counter_test (
   user text,
   login_count counter,
   PRIMARY KEY(user));
+
+
+CREATE TABLE data_type_write_test (
+  user_id uuid,
+  name text,
+  email ascii,
+  age_in_years int,
+  weight float,
+  is_married boolean,
+  ipaddress inet,
+  profile varchar,
+  places set<text>,
+  props map<text, text>,
+  degrees list<text>,
+  salary decimal,
+  some_blob blob,
+  created_time timestamp,
+  some_big_int varint,
+  latitude double,
+  longitude double,
+  PRIMARY KEY(user_id)
+);
+

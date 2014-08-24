@@ -83,8 +83,6 @@ class CassandraQueryContextSpec extends FunSpec with BeforeAndAfterAll with Shou
 
       val plan: SparkPlan = filteredRdd.queryExecution.executedPlan
 
-      println(s"PLAN:\n$plan")
-
       plan.expressions should have size (1)
 
       plan.expressions.head.references.head.name should be("age_in_years")
@@ -179,8 +177,6 @@ class CassandraQueryContextSpec extends FunSpec with BeforeAndAfterAll with Shou
 
       val plan: SparkPlan = filteredRdd.queryExecution.executedPlan
 
-      println(s"PLAN: \n $plan")
-
       plan.expressions should have size (1)
 
       plan.expressions.head.references.map(_.name) should be(Set("age_in_years"))
@@ -190,8 +186,6 @@ class CassandraQueryContextSpec extends FunSpec with BeforeAndAfterAll with Shou
       plan.children.head.getClass should be(classOf[CassandraTableScan])
 
       val pushedDown = plan.children.head.asInstanceOf[CassandraTableScan].filters
-
-      println(pushedDown)
 
       pushedDown should have size (2)
 
@@ -213,8 +207,6 @@ class CassandraQueryContextSpec extends FunSpec with BeforeAndAfterAll with Shou
 
       val plan: SparkPlan = filteredRdd.queryExecution.executedPlan
 
-      println(s"PLAN: \n $plan")
-
       plan.expressions.head.references.map(_.name) should be(Set("age_in_years", "weight"))
 
       plan.children should have size (1)
@@ -222,8 +214,6 @@ class CassandraQueryContextSpec extends FunSpec with BeforeAndAfterAll with Shou
       plan.children.head.getClass should be(classOf[CassandraTableScan])
 
       val pushedDown = plan.children.head.asInstanceOf[CassandraTableScan].filters
-
-      println(pushedDown)
 
       pushedDown should have size (0)
 
@@ -259,8 +249,6 @@ class CassandraQueryContextSpec extends FunSpec with BeforeAndAfterAll with Shou
       val devScores = empScore1.where('year === 2001)
 
       val plan: SparkPlan = devScores.queryExecution.executedPlan
-
-      println(s"PLAN: \n$plan")
 
       plan.expressions.head.references.map(_.name) should be(Set("year"))
 

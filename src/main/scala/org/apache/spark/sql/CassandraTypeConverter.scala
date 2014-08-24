@@ -1,4 +1,4 @@
-package com.tuplejump.calliope.sql
+package org.apache.spark.sql
 
 import com.datastax.driver.core.{Cluster, KeyspaceMetadata, Metadata, TableMetadata, DataType => CassandraDataType}
 import org.apache.spark.sql.catalyst.expressions._
@@ -8,16 +8,6 @@ import scala.collection.JavaConversions._
 
 
 private[sql] object CassandraTypeConverter {
-  def getCassandraSchema(host: String, port: String, keyspace: String, columnFamily: String): TableMetadata = {
-    require(keyspace != null, "Unable to read schema: keyspace is null")
-    require(columnFamily != null, "Unable to read schema: columnFamily is null")
-
-    val driver = new Cluster.Builder().addContactPoint(host).withPort(port.toInt).build().connect()
-    val clusterMeta: Metadata = driver.getCluster.getMetadata
-    val keyspaceMeta: KeyspaceMetadata = clusterMeta.getKeyspace( s""""${keyspace}"""")
-    val tableMeta = keyspaceMeta.getTable( s""""${columnFamily}"""")
-    tableMeta
-  }
 
   def convertToAttributes(table: TableMetadata): Seq[Attribute] = {
     table.getColumns.map(column => new AttributeReference(column.getName, toCatalystType(column.getType), false)())

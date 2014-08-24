@@ -20,24 +20,20 @@
 package com.tuplejump.calliope
 
 
-import org.apache.spark.Logging
-import org.apache.cassandra.thrift.{Column, Mutation, ColumnOrSuperColumn}
-import com.tuplejump.calliope.hadoop.ColumnFamilyOutputFormat
+import java.nio.ByteBuffer
 
+import com.tuplejump.calliope.Types._
+import com.tuplejump.calliope.hadoop.cql3.CqlOutputFormat
+import com.tuplejump.calliope.hadoop.{ColumnFamilyOutputFormat, ConfigHelper}
+import com.tuplejump.calliope.utils.SparkHadoopMapReduceUtil
+import org.apache.cassandra.thrift.{Column, ColumnOrSuperColumn, Mutation}
+import org.apache.spark.Logging
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 
-import com.tuplejump.calliope.hadoop.cql3.CqlOutputFormat
-
-import scala.collection.JavaConversions._
-
-import java.nio.ByteBuffer
-
-import com.tuplejump.calliope.utils.SparkHadoopMapReduceUtil
-import Types._
-
-import scala.language.implicitConversions
 import scala.annotation.implicitNotFound
+import scala.collection.JavaConversions._
+import scala.language.implicitConversions
 
 
 class CassandraRDDFunctions[U](self: RDD[U])
@@ -212,26 +208,43 @@ class CassandraRDDFunctions[U](self: RDD[U])
   @implicitNotFound(
     "No transformer found for U => CQLRowKeyMap. You must have implicit methods for these."
   )
-  def saveToCas(keyspace: String, columnFamily: String, keyCols: List[CQLKeyColumnName], valueCols: List[CQLColumnName])
-                     (implicit marshaller: U => CQLRowMap) {
+  def saveToCas(cqlBuilder: Cql3CasBuilder, keyCols: List[CQLKeyColumnName], valueCols: List[CQLColumnName])
+               (implicit marshaller: U => CQLRowMap) {
     import com.tuplejump.calliope.Implicits._
     val valPart = valueCols.map(_ + " = ?").mkString(",")
 
-    val cas = CasBuilder.cql3.withColumnFamily(keyspace, columnFamily)
-      .saveWithQuery("UPDATE " + keyspace + "." + columnFamily +
-      " set " + valPart)
+    val ks = ConfigHelper.getOutputKeyspace(cqlBuilder.configuration)
+    val cf = ConfigHelper.getOutputColumnFamily(cqlBuilder.configuration)
+
+    val cas = cqlBuilder.saveWithQuery(s"UPDATE $ks.$cf SET $valPart")
 
     val mappedSelf = self.map {
       row =>
         val rowMap = marshaller(row)
-        val keysMap = rowMap -- valueCols
-        val valuesMap = rowMap -- keyCols
-        (keysMap, valuesMap)
+        rowMap.partition(mapEntry => keyCols.contains(mapEntry._1))
     }
 
     implicit def keyMarshaller(r: (CQLRowKeyMap, CQLRowMap)) = r._1
     implicit def valueMarshaller(r: (CQLRowKeyMap, CQLRowMap)) = r._2.values.toList
 
     mappedSelf.cql3SaveToCassandra(cas)
+  }
+
+  @implicitNotFound(
+    "No transformer found for U => CQLRowKeyMap. You must have implicit methods for these."
+  )
+  def saveToCas(keyspace: String, columnFamily: String, keyCols: List[CQLKeyColumnName], valueCols: List[CQLColumnName])
+               (implicit marshaller: U => CQLRowMap) {
+
+
+  }
+
+  @implicitNotFound(
+    "No transformer found for U => CQLRowKeyMap. You must have implicit methods for these."
+  )
+  def saveToCas(host: String, port: String, keyspace: String, columnFamily: String, keyCols: List[CQLKeyColumnName], valueCols: List[CQLColumnName])
+               (implicit marshaller: U => CQLRowMap) {
+    val cas = CasBuilder.cql3.withColumnFamily(keyspace, columnFamily).onHost(host).onPort(port)
+    saveToCas(cas, keyCols, valueCols)(marshaller)
   }
 }

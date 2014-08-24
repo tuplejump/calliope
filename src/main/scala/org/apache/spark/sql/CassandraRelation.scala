@@ -1,6 +1,7 @@
-package com.tuplejump.calliope.sql
+package org.apache.spark.sql
 
-import com.datastax.driver.core.TableMetadata
+import com.datastax.driver.core._
+import com.twitter.chill.MeatLocker
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions._
@@ -9,17 +10,22 @@ import org.apache.spark.sql.catalyst.plans.logical.LeafNode
 import scala.collection.JavaConversions._
 
 
-case class CassandraRelation(host: String, port: String, keyspace: String, columnFamily: String, @transient conf: Option[Configuration] = None)
+case class CassandraRelation(host: String, nativePort: String, rpcPort: String, keyspace: String, table: String, @transient conf: Option[Configuration] = None)
   extends LeafNode with MultiInstanceRelation {
-  @transient private val cassandraSchema: TableMetadata = CassandraTypeConverter.getCassandraSchema(host, port, keyspace, columnFamily)
 
-  val partitionKeys = cassandraSchema.getPartitionKey.map(_.getName).toList
+  @transient private val cassandraSchema: TableMetadata = getCassandraSchema(host, nativePort, keyspace, table)
 
-  val clusteringKeys: List[String] = cassandraSchema.getClusteringColumns.map(_.getName).toList
+  private[sql] val partitionKeys: List[String] = cassandraSchema.getPartitionKey.map(_.getName).toList
 
-  val indexes: List[String] = cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getName).toList diff partitionKeys
+  private[sql] val clusteringKeys: List[String] = cassandraSchema.getClusteringColumns.map(_.getName).toList
 
-  override def newInstance() = new CassandraRelation(host, port, keyspace, columnFamily, conf).asInstanceOf[this.type]
+  //private[sql] val columns: List[String] = cassandraSchema.getColumns.map(_.getName).toList
+
+  private[sql] val columns: Map[String, SerCassandraDataType] = cassandraSchema.getColumns.map(c => c.getName -> SerCassandraDataType.fromDataType(c.getType)).toMap
+
+  private val indexes: List[String] = cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getName).toList diff partitionKeys
+
+  override def newInstance() = new CassandraRelation(host, nativePort, rpcPort, keyspace, table, conf).asInstanceOf[this.type]
 
   override val output: Seq[Attribute] = CassandraTypeConverter.convertToAttributes(cassandraSchema)
 
@@ -33,12 +39,6 @@ case class CassandraRelation(host: String, port: String, keyspace: String, colum
     val equalsOnClusteringKeys = clusteringKeys.intersect(equalFilters).toList
 
     val clusteringKeysToUse: List[String] = getClusterKeysToUse(clusteringKeys, equalsOnClusteringKeys)
-
-
-    println(s"Clustering Keys: $clusteringKeys")
-    println(s"Equals on Clustering Keys: $equalsOnClusteringKeys")
-    println(s"Clustering Keys to Use: $clusteringKeysToUse")
-    println(s"Indexes: $indexes")
 
     val equalIndexes: List[String] = equalFilters.intersect(indexes).toList
 
@@ -77,6 +77,18 @@ case class CassandraRelation(host: String, port: String, keyspace: String, colum
     PushdownFilters(pushdownExpr, retainExpr)
   }
 
+  private def getCassandraSchema(host: String, port: String, keyspace: String, columnFamily: String): TableMetadata = {
+    require(keyspace != null, "Unable to read schema: keyspace is null")
+    require(columnFamily != null, "Unable to read schema: columnFamily is null")
+
+    val driver = new Cluster.Builder().addContactPoint(host).withPort(port.toInt).build().connect()
+    val clusterMeta: Metadata = driver.getCluster.getMetadata
+    val keyspaceMeta: KeyspaceMetadata = clusterMeta.getKeyspace( s""""${keyspace}"""")
+    val tableMeta = keyspaceMeta.getTable( s""""${columnFamily}"""")
+    tableMeta
+  }
+
+
   private def getClusterKeysToUse(clusteringKeys: List[String], filteredClusteringKeys: List[String], index: Int = 0): List[String] = {
     if (filteredClusteringKeys.isEmpty) {
       List.empty[String]
@@ -102,40 +114,29 @@ case class CassandraRelation(host: String, port: String, keyspace: String, colum
     case p@GreaterThan(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
     case _ => None
   }
-
-  private def canUseFilter(filter: Expression): Boolean = {
-    println(s" Checking Filter: $filter")
-    filter match {
-      case p@EqualTo(left: NamedExpression, right: Literal) if useFilter(left.name) => {
-        true
-      }
-      case p@EqualTo(Cast(left: NamedExpression, _), right: Literal) if useFilter(left.name) => {
-        true
-      }
-      case p@LessThan(left: NamedExpression, right: Literal) if useFilter(left.name) => {
-        true
-      }
-      case p@LessThan(Cast(left: NamedExpression, _), right: Literal) if useFilter(left.name) => {
-        true
-      }
-      case p@GreaterThan(left: NamedExpression, right: Literal) if useFilter(left.name) => {
-        true
-      }
-      case p@GreaterThan(Cast(left: NamedExpression, _), right: Literal) if useFilter(left.name) => {
-        true
-      }
-      case _ => {
-        false
-      }
-    }
-  }
-
-  private def useFilter(column: String): Boolean = {
-    println(indexes)
-    println("Checking for index on - " + column)
-    indexes.contains(column)
-  }
 }
+
 
 case class PushdownFilters(filtersToPushdown: Seq[Expression], filtersToRetain: Seq[Expression])
 
+case class SerCassandraDataType(dataType: DataType.Name, param1: Option[DataType.Name], param2: Option[DataType.Name])
+
+object SerCassandraDataType {
+  def fromDataType(dt: DataType): SerCassandraDataType = {
+    if(dt.isCollection){
+      dt.getName match {
+        case DataType.Name.MAP =>
+          val params = dt.getTypeArguments
+          SerCassandraDataType(dt.getName, Some(params(0).getName), Some(params(1).getName))
+        case DataType.Name.SET =>
+          val params = dt.getTypeArguments
+          SerCassandraDataType(dt.getName, Some(params(0).getName), None)
+        case DataType.Name.LIST =>
+          val params = dt.getTypeArguments
+          SerCassandraDataType(dt.getName, Some(params(0).getName), None)
+      }
+    } else {
+      SerCassandraDataType(dt.getName, None, None)
+    }
+  }
+}

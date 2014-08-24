@@ -2,7 +2,6 @@ package org.apache.spark.sql
 
 import com.datastax.driver.core.{Row => CassandraRow}
 import com.tuplejump.calliope.CasBuilder
-import com.tuplejump.calliope.sql.CassandraRelation
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.types._
@@ -14,24 +13,20 @@ case class CassandraTableScan(
                                output: Seq[Attribute],
                                relation: CassandraRelation,
                                filters: Seq[Expression])(
-                               @transient val sqlContext: SQLContext) extends LeafNode {
+                               @transient val sqlContext: SQLContext) extends LeafNode with Logging {
 
   override def execute(): RDD[Row] = {
 
     import com.tuplejump.calliope.Implicits._
 
-    println(s"Predicates: $filters")
-
     implicit val cassandraRow2sparkRow: CassandraRow => Row = {
       row =>
-        new GenericRow(CassandraSparkRowConvertor.build(row))
+        new GenericRow(CassandraSparkDataConvertor.build(row))
     }
 
     val keyString: String = relation.partitionKeys.mkString(",")
 
-    println(s"Filters to Use: $filters")
-
-    val baseQuery = s"SELECT * FROM ${relation.keyspace}.${relation.columnFamily} WHERE token($keyString) > ? AND token($keyString) < ?"
+    val baseQuery = s"SELECT * FROM ${relation.keyspace}.${relation.table} WHERE token($keyString) > ? AND token($keyString) < ?"
 
     val queryToUse = if (filters.length <= 0) {
       baseQuery
@@ -45,17 +40,17 @@ case class CassandraTableScan(
         case p@GreaterThan(Cast(left: NamedExpression, _), right: Literal) => Some(buildQueryString(">", left, right))
       }.filter(_.isDefined).map(_.get).mkString(" AND ")
 
-      println(filterString)
       s"$baseQuery AND $filterString"
     } + " ALLOW FILTERING"
 
-    println(queryToUse)
+    //Logger(queryToUse)
+    logger.info(s"Generated CQL: $queryToUse")
 
     val cas = CasBuilder.native
-      .withColumnFamilyAndQuery(relation.keyspace, relation.columnFamily, queryToUse)
+      .withColumnFamilyAndQuery(relation.keyspace, relation.table, queryToUse)
       .onHost(relation.host)
-      .onNativePort(relation.port)
-      .onPort("9160")
+      .onPort(relation.rpcPort)
+      .onNativePort(relation.nativePort)
       .mergeRangesInMultiRangeSplit(256)
 
     sqlContext.sparkContext.nativeCassandra[Row](cas)

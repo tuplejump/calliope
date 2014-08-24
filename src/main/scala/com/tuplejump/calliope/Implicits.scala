@@ -19,14 +19,14 @@
 
 package com.tuplejump.calliope
 
-import com.tuplejump.calliope.thrift.ThriftCassandraSparkContext
 import com.tuplejump.calliope.cql3.Cql3CassandraSparkContext
+import com.tuplejump.calliope.native.NativeCassandraSparkContext
+import com.tuplejump.calliope.thrift.ThriftCassandraSparkContext
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{CassandraSchemaRDD, SchemaRDD}
 
 import scala.language.implicitConversions
-import com.tuplejump.calliope.native.NativeCassandraSparkContext
-import java.util.Date
 
 object Implicits {
 
@@ -38,4 +38,6 @@ object Implicits {
   implicit def SparkContext2Cql3CasSparkContext(sc: SparkContext) = new Cql3CassandraSparkContext(sc)
 
   implicit def SparkContext2NativeCasSparkContext(sc: SparkContext) = new NativeCassandraSparkContext(sc)
+
+  implicit def SchemaRDD2CassandraSchemaRDD(table: SchemaRDD) = new CassandraSchemaRDD(table)
 }
