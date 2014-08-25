@@ -24,9 +24,13 @@ case class CassandraTableScan(
         new GenericRow(CassandraSparkDataConvertor.build(row))
     }
 
+    val projection = if(output.isEmpty) "*" else output.map(_.name).mkString(",")
+
+    println(s"PROJECTION: $projection")
+
     val keyString: String = relation.partitionKeys.mkString(",")
 
-    val baseQuery = s"SELECT * FROM ${relation.keyspace}.${relation.table} WHERE token($keyString) > ? AND token($keyString) < ?"
+    val baseQuery = s"SELECT ${projection} FROM ${relation.keyspace}.${relation.table} WHERE token($keyString) > ? AND token($keyString) < ?"
 
     val queryToUse = if (filters.length <= 0) {
       baseQuery

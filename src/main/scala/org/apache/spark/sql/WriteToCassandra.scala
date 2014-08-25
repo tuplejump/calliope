@@ -13,9 +13,9 @@ case class WriteToCassandra(relation: CassandraRelation, child: SparkPlan)
 
 
   private val columnMap: Map[String, Int] = child.output.zipWithIndex.map { case (a, i) => a.name -> i}.toMap
-  private val childRdd = child.execute()
 
   override def execute(): RDD[Row] = {
+    val childRdd = child.execute()
 
     val keyColumns = relation.partitionKeys ++ relation.clusteringKeys
     val columnsWithTypes: List[(String, SerCassandraDataType)] = relation.columns.toList
