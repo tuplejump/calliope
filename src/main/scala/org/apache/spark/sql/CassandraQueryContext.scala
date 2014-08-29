@@ -40,9 +40,11 @@ class CassandraQueryContext(sc: SparkContext) extends SQLContext(sc) {
 
   def cassandraTable(keyspace: String, table: String): SchemaRDD = cassandraTable(cassandraHost, cassandraNativePort, keyspace, table)
 
-  def cassandraTable(host: String, port: String, keyspace: String, table: String): SchemaRDD = {
+  def cassandraTable(keyspace: String, table: String, mayUseStargate:Boolean): SchemaRDD = cassandraTable(cassandraHost, cassandraNativePort, keyspace, table, mayUseStargate)
+
+  def cassandraTable(host: String, port: String, keyspace: String, table: String, mayUseStargate:Boolean = false): SchemaRDD = {
     //Cassaandra Thrift port is not used in this case
-    new SchemaRDD(this, CassandraRelation(host, port, cassandraRpcPort, keyspace, table, Some(sparkContext.hadoopConfiguration)))
+    new SchemaRDD(this, CassandraRelation(host, port, cassandraRpcPort, keyspace, table, Some(sparkContext.hadoopConfiguration), mayUseStargate))
   }
 
 

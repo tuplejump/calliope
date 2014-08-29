@@ -5,16 +5,19 @@ import java.nio.ByteBuffer
 import java.sql.Timestamp
 import java.util.{Date, UUID}
 
+import org.apache.spark.sql.catalyst.expressions.Attribute
+
+
 import com.datastax.driver.core.{DataType => CassandraDataType, Row => CassandraRow}
 
 import scala.collection.JavaConversions._
 
 object CassandraSparkDataConvertor {
 
-  private[sql] def build(crow: CassandraRow): Array[Any] = {
-    crow.getColumnDefinitions.map {
-      cd =>
-        readTypedValue(crow, cd.getName, cd.getType)
+  private[sql] def build(crow: CassandraRow, output: Seq[Attribute]): Array[Any] = {
+    output.map(_.name).map{
+      column =>
+        readTypedValue(crow, column, crow.getColumnDefinitions.getType(column))
     }.toArray
   }
 
@@ -75,7 +78,7 @@ object CassandraSparkDataConvertor {
       case CassandraDataType.Name.VARINT => CassandraDataType.varint().serialize(data.asInstanceOf[BigDecimal].toBigInt().underlying()) //Big Integer is treated as BigDecimal by Catalyst
       case CassandraDataType.Name.INET => if (data.isInstanceOf[String]) CassandraDataType.inet().serialize(InetAddress.getByName(data.asInstanceOf[String])) else CassandraDataType.inet().serialize(data.asInstanceOf[InetAddress])
       case CassandraDataType.Name.UUID => CassandraDataType.uuid().serialize(UUID.fromString(data.asInstanceOf[String])) //TODO: Stopgap solution. Should be struct.
-      case CassandraDataType.Name.TIMEUUID => CassandraDataType.uuid().serialize(UUID.fromString(data.asInstanceOf[String])) //TODO: Stopgap solution. Should be struct.
+      case CassandraDataType.Name.TIMEUUID => CassandraDataType.timeuuid().serialize(UUID.fromString(data.asInstanceOf[String])) //TODO: Stopgap solution. Should be struct.
       case CassandraDataType.Name.TIMESTAMP => CassandraDataType.timestamp().serialize(new Date(data.asInstanceOf[Timestamp].getTime))
       case CassandraDataType.Name.VARCHAR => CassandraDataType.varchar().serialize(data)
       case CassandraDataType.Name.LIST => {

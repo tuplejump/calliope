@@ -1,7 +1,6 @@
 package org.apache.spark.sql
 
 import com.datastax.driver.core._
-import com.twitter.chill.MeatLocker
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions._
@@ -9,27 +8,136 @@ import org.apache.spark.sql.catalyst.plans.logical.LeafNode
 
 import scala.collection.JavaConversions._
 
-
-case class CassandraRelation(host: String, nativePort: String, rpcPort: String, keyspace: String, table: String, @transient conf: Option[Configuration] = None)
+case class CassandraRelation(host: String, nativePort: String,
+                             rpcPort: String, keyspace: String, table: String,
+                             @transient conf: Option[Configuration] = None,
+                             mayUseStartgate: Boolean = false)
   extends LeafNode with MultiInstanceRelation {
+  @transient private[sql] val cassandraSchema: TableMetadata = getCassandraSchema(host, nativePort, keyspace, table)
 
-  @transient private val cassandraSchema: TableMetadata = getCassandraSchema(host, nativePort, keyspace, table)
+  assert(cassandraSchema != null, s"Invalid Keyspace [$keyspace] or Table [$table] ")
 
   private[sql] val partitionKeys: List[String] = cassandraSchema.getPartitionKey.map(_.getName).toList
 
   private[sql] val clusteringKeys: List[String] = cassandraSchema.getClusteringColumns.map(_.getName).toList
 
-  //private[sql] val columns: List[String] = cassandraSchema.getColumns.map(_.getName).toList
-
   private[sql] val columns: Map[String, SerCassandraDataType] = cassandraSchema.getColumns.map(c => c.getName -> SerCassandraDataType.fromDataType(c.getType)).toMap
 
-  private val indexes: List[String] = cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getName).toList diff partitionKeys
+  private val indexes: List[String] = cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getName).toList
 
-  override def newInstance() = new CassandraRelation(host, nativePort, rpcPort, keyspace, table, conf).asInstanceOf[this.type]
+  override def newInstance() = new CassandraRelation(host, nativePort, rpcPort, keyspace, table, conf, mayUseStartgate).asInstanceOf[this.type]
 
   override val output: Seq[Attribute] = CassandraTypeConverter.convertToAttributes(cassandraSchema)
 
+  private val isStargatePermitted = mayUseStartgate || (conf match {
+    case Some(c) => c.get("calliope.stargate.enable") == "true" || c.get(s"calliope.stargate.$keyspace.$table.enable") == "true"
+    case None => false
+  })
+
+  private[sql] val stargateIndex: Option[String] = if (isStargatePermitted) {
+    cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getIndex).collectFirst {
+      case idx if (idx.isCustomIndex && idx.getIndexClassName == "com.tuplejump.stargate.RowIndex") =>
+        idx.getIndexedColumn.getName
+    }
+  } else {
+    None
+  }
+
   def pushdownPredicates(filters: Seq[Expression]): PushdownFilters = {
+    stargateIndex match {
+      case Some(idxColumn) => StargatePushdownHandler.getPushdownFilters(filters)
+      case None => CassandraPushdownHandler.getPushdownFilters(filters, partitionKeys, clusteringKeys, indexes)
+    }
+  }
+
+  private def getCassandraSchema(host: String, port: String, keyspace: String, columnFamily: String): TableMetadata = {
+    require(keyspace != null, "Unable to read schema: keyspace is null")
+    require(columnFamily != null, "Unable to read schema: columnFamily is null")
+
+    val driver = new Cluster.Builder().addContactPoint(host).withPort(port.toInt).build().connect()
+    val clusterMeta: Metadata = driver.getCluster.getMetadata
+    val keyspaceMeta: KeyspaceMetadata = clusterMeta.getKeyspace( s""""${keyspace}"""")
+    val tableMeta = keyspaceMeta.getTable( s""""${columnFamily}"""")
+    tableMeta
+  }
+}
+
+trait PushdownHandler {
+  protected[sql] def mapEqualsToColumnNames: Expression => Option[(String, Expression)] = {
+    case p@EqualTo(left: NamedExpression, right: Literal) => Some(left.name -> p)
+    case p@EqualTo(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
+    case _ => None
+  }
+
+  protected[sql] def mapGtLtToColumnNames: Expression => Option[(String, Expression)] = {
+    case p@LessThan(left: NamedExpression, right: Literal) => Some(left.name -> p)
+    case p@LessThan(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
+    case p@LessThanOrEqual(left: NamedExpression, right: Literal) => Some(left.name -> p)
+    case p@LessThanOrEqual(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
+    case p@GreaterThan(left: NamedExpression, right: Literal) => Some(left.name -> p)
+    case p@GreaterThan(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
+    case p@GreaterThanOrEqual(left: NamedExpression, right: Literal) => Some(left.name -> p)
+    case p@GreaterThanOrEqual(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
+    case _ => None
+  }
+}
+
+object StargatePushdownHandler extends PushdownHandler {
+  private[sql] def getPushdownFilters(filters: Seq[Expression]): PushdownFilters = {
+    println("Using STARGATE filter")
+    /* val equals = filters.map(mapEqualsToColumnNames).filter(_.isDefined).map(_.get)
+    val gtlts = filters.map(mapGtLtToColumnNames).filter(_.isDefined).map(_.get)
+
+    val pushdown = equals.map(_._2) ++ gtlts.map(_._2)
+    val retain = filters diff pushdown */
+
+    val (pushdown, retain) = filters.partition(isSupportedQuery)
+
+    println(s"PUSHDOWN: $pushdown")
+
+    PushdownFilters(pushdown, retain)
+  }
+
+  private val isSupportedQuery: Expression => Boolean = {
+    case p: Expression if isSupportedSimpleQuery(p) => true
+    case p: Expression if isSupportedComplexQuery(p) => true
+    case _ => false
+  }
+
+  private val isSupportedComplexQuery: Expression => Boolean = {
+    case p@Or(left: Expression, right: Expression) =>
+      (isSupportedSimpleQuery(right) || isSupportedComplexQuery(right)) &&
+        (isSupportedSimpleQuery(left) || isSupportedComplexQuery(left))
+
+    case p@And(left: Expression, right: Expression) =>
+      (isSupportedSimpleQuery(right) || isSupportedComplexQuery(right)) &&
+        (isSupportedSimpleQuery(left) || isSupportedComplexQuery(left))
+
+    case p@Not(left: Expression) =>
+      isSupportedSimpleQuery(left) || isSupportedComplexQuery(left)
+
+    case _ => false
+  }
+
+  private val isSupportedSimpleQuery: Expression => Boolean = {
+    case p@EqualTo(left: NamedExpression, right: Literal) => true
+    case p@EqualTo(Cast(left: NamedExpression, _), right: Literal) => true
+    case p@LessThan(left: NamedExpression, right: Literal) => true
+    case p@LessThan(Cast(left: NamedExpression, _), right: Literal) => true
+    case p@LessThanOrEqual(left: NamedExpression, right: Literal) => true
+    case p@LessThanOrEqual(Cast(left: NamedExpression, _), right: Literal) => true
+    case p@GreaterThan(left: NamedExpression, right: Literal) => true
+    case p@GreaterThan(Cast(left: NamedExpression, _), right: Literal) => true
+    case p@GreaterThanOrEqual(left: NamedExpression, right: Literal) => true
+    case p@GreaterThanOrEqual(Cast(left: NamedExpression, _), right: Literal) => true
+    case p@In(left: NamedExpression, right: Seq[Literal]) => true
+    case _ => false
+  }
+}
+
+object CassandraPushdownHandler extends PushdownHandler {
+  private[sql] def getPushdownFilters(filters: Seq[Expression], partitionKeys: List[String], clusteringKeys: List[String], allIndexes: List[String]): PushdownFilters = {
+    val indexes: List[String] = allIndexes diff partitionKeys
 
     //Get the defined equal filters
     val equals = filters.map(mapEqualsToColumnNames).filter(_.isDefined).map(_.get)
@@ -77,18 +185,6 @@ case class CassandraRelation(host: String, nativePort: String, rpcPort: String, 
     PushdownFilters(pushdownExpr, retainExpr)
   }
 
-  private def getCassandraSchema(host: String, port: String, keyspace: String, columnFamily: String): TableMetadata = {
-    require(keyspace != null, "Unable to read schema: keyspace is null")
-    require(columnFamily != null, "Unable to read schema: columnFamily is null")
-
-    val driver = new Cluster.Builder().addContactPoint(host).withPort(port.toInt).build().connect()
-    val clusterMeta: Metadata = driver.getCluster.getMetadata
-    val keyspaceMeta: KeyspaceMetadata = clusterMeta.getKeyspace( s""""${keyspace}"""")
-    val tableMeta = keyspaceMeta.getTable( s""""${columnFamily}"""")
-    tableMeta
-  }
-
-
   private def getClusterKeysToUse(clusteringKeys: List[String], filteredClusteringKeys: List[String], index: Int = 0): List[String] = {
     if (filteredClusteringKeys.isEmpty) {
       List.empty[String]
@@ -100,22 +196,7 @@ case class CassandraRelation(host: String, nativePort: String, rpcPort: String, 
       }
     }
   }
-
-  private def mapEqualsToColumnNames: Expression => Option[(String, Expression)] = {
-    case p@EqualTo(left: NamedExpression, right: Literal) => Some(left.name -> p)
-    case p@EqualTo(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
-    case _ => None
-  }
-
-  private def mapGtLtToColumnNames: Expression => Option[(String, Expression)] = {
-    case p@LessThan(left: NamedExpression, right: Literal) => Some(left.name -> p)
-    case p@LessThan(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
-    case p@GreaterThan(left: NamedExpression, right: Literal) => Some(left.name -> p)
-    case p@GreaterThan(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
-    case _ => None
-  }
 }
-
 
 case class PushdownFilters(filtersToPushdown: Seq[Expression], filtersToRetain: Seq[Expression])
 
@@ -123,7 +204,7 @@ case class SerCassandraDataType(dataType: DataType.Name, param1: Option[DataType
 
 object SerCassandraDataType {
   def fromDataType(dt: DataType): SerCassandraDataType = {
-    if(dt.isCollection){
+    if (dt.isCollection) {
       dt.getName match {
         case DataType.Name.MAP =>
           val params = dt.getTypeArguments
