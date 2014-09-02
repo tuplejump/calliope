@@ -1,7 +1,7 @@
 package com.tuplejump.calliope.sql
 
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.CassandraQueryContext
+import org.apache.spark.sql.CassandraAwareSQLContext
 import org.scalatest.matchers.{MustMatchers, ShouldMatchers}
 import org.scalatest.{BeforeAndAfterAll, FunSpec}
 
@@ -12,7 +12,7 @@ class StargateAwareContextSpec extends FunSpec with BeforeAndAfterAll with Shoul
 
   val sc = new SparkContext("local", "castest")
 
-  val casContext = new CassandraQueryContext(sc)
+  val casContext = new CassandraAwareSQLContext(sc)
   import casContext._
 
   describe("Stargate aware context") {

@@ -2,11 +2,11 @@ package com.tuplejump.calliope.sql
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.{CassandraQueryContext, CassandraTableScan, SchemaRDD}
+import org.apache.spark.sql.{CassandraAwareSQLContext, CassandraTableScan, SchemaRDD}
 import org.scalatest.matchers.{MustMatchers, ShouldMatchers}
 import org.scalatest.{BeforeAndAfterAll, FunSpec}
 
-class CassandraQueryContextSpec extends FunSpec with BeforeAndAfterAll with ShouldMatchers with MustMatchers {
+class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with ShouldMatchers with MustMatchers {
 
   private final val TEST_KEYSPACE = "cql3_test"
   private final val TEST_INPUT_COLUMN_FAMILY = "data_type_test"
@@ -14,7 +14,7 @@ class CassandraQueryContextSpec extends FunSpec with BeforeAndAfterAll with Shou
 
   val sc = new SparkContext("local", "castest")
 
-  val casContext = new CassandraQueryContext(sc)
+  val casContext = new CassandraAwareSQLContext(sc)
   import casContext._
 
   describe("Cassandra Query Context") {

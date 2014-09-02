@@ -5,7 +5,7 @@ import java.sql.Timestamp
 import java.util.{Date, UUID}
 
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.CassandraQueryContext
+import org.apache.spark.sql.CassandraAwareSQLContext
 import org.scalatest.matchers.{MustMatchers, ShouldMatchers}
 import org.scalatest.{BeforeAndAfterAll, FunSpec}
 
@@ -17,7 +17,7 @@ class CassandraSchemaRDDSpec extends FunSpec with BeforeAndAfterAll with ShouldM
   val TEST_WRITE_TABLE = "data_type_write_test"
 
   val sc = new SparkContext("local", "castest")
-  val casContext = new CassandraQueryContext(sc)
+  val casContext = new CassandraAwareSQLContext(sc)
 
   import casContext._
 

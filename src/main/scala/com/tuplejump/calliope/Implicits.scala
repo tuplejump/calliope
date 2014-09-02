@@ -40,4 +40,5 @@ object Implicits {
   implicit def SparkContext2NativeCasSparkContext(sc: SparkContext) = new NativeCassandraSparkContext(sc)
 
   implicit def SchemaRDD2CassandraSchemaRDD(table: SchemaRDD) = new CassandraSchemaRDD(table)
+  
 }

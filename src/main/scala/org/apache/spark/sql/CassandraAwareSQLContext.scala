@@ -10,7 +10,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import scala.util.{Failure, Success, Try}
 
 
-class CassandraQueryContext(sc: SparkContext) extends SQLContext(sc) {
+class CassandraAwareSQLContext(sc: SparkContext) extends SQLContext(sc) {
   self =>
 
   final val cassandraHostKey = "spark.cassandra.connection.host"
