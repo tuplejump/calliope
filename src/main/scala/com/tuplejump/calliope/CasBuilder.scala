@@ -97,7 +97,7 @@ class BaseNativeCasBuilder {
    */
   def withColumnFamilyAndKeyColumns(keyspace: String, columnFamily: String, keys: String*) = {
     require(keys != null && keys.length > 0, "Must pass all the partition keys columns, which cannot be empty")
-    val keyString = keys.mkString(",")
+    val keyString = keys.mkString("\",\"")
     withColumnFamilyAndQuery(keyspace, columnFamily, s"select * from $columnFamily where token($keyString) > ? and token($keyString) <= ? allow filtering")
   }
 

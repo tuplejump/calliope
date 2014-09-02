@@ -27,6 +27,7 @@ import java.util.*;
 import com.google.common.base.Optional;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
+import com.tuplejump.calliope.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -684,14 +685,14 @@ public class CqlPagingRecordReader extends RecordReader<Map<String, ByteBuffer>,
         CqlRow cqlRow = result.rows.get(0);
         String keyString = ByteBufferUtil.string(ByteBuffer.wrap(cqlRow.columns.get(0).getValue()));
         logger.debug("partition keys: {}", keyString);
-        List<String> keys = FBUtilities.fromJsonList(keyString);
+        List<String> keys = Util.parseJsonAsList(keyString);
 
         for (String key : keys)
             partitionBoundColumns.add(new BoundColumn(key));
 
         keyString = ByteBufferUtil.string(ByteBuffer.wrap(cqlRow.columns.get(1).getValue()));
         logger.debug("cluster columns: {}", keyString);
-        keys = FBUtilities.fromJsonList(keyString);
+        keys = Util.parseJsonAsList(keyString);
 
         for (String key : keys)
             clusterColumns.add(new BoundColumn(key));
