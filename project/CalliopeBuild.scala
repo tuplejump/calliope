@@ -4,7 +4,7 @@ import sbt._
 object
 CalliopeBuild extends Build {
 
-  lazy val VERSION = "1.0.2-CTP-SNAPSHOT"
+  lazy val VERSION = "1.1.0-CTP"
 
   lazy val CAS_VERSION = "2.0.9"
 
@@ -92,7 +92,8 @@ CalliopeBuild extends Build {
 
       organizationHomepage := Some(url("http://www.tuplejump.com")),
 
-      resolvers ++= Seq("Akka Repository" at "http://repo.akka.io/releases/")
+      resolvers ++= Seq("Akka Repository" at "http://repo.akka.io/releases/"),
+
       //javaOptions in Test := Seq("-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"),
 
       fork in Test := true
