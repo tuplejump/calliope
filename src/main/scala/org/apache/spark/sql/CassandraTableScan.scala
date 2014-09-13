@@ -127,7 +127,7 @@ case class CassandraTableScan(
         should = List.empty[Condition],
         not = List(predicateToCondition(left)))
 
-    case p@In(left: NamedExpression, right: Seq[Literal]) =>
+    case p@In(left: NamedExpression, right: Seq[Literal @unchecked]) =>
       BooleanCondition(should = right.map(r => MatchCondition(field = left.name, value = r.value)).toList,
         must = List.empty[Condition],
         not = List.empty[Condition])
@@ -135,10 +135,8 @@ case class CassandraTableScan(
 
   private def isGtLt: Expression => Boolean = {
     case p: GreaterThan => true
-    case p: GreaterThan => true
+    case p: LessThan => true
     case p: LessThanOrEqual => true
-    case p: LessThanOrEqual => true
-    case p: GreaterThanOrEqual => true
     case p: GreaterThanOrEqual => true
     case _ => false
   }

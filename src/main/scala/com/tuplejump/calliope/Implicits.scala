@@ -25,6 +25,7 @@ import com.tuplejump.calliope.thrift.ThriftCassandraSparkContext
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{CassandraSchemaRDD, SchemaRDD}
+import org.apache.spark.streaming.dstream.DStream
 
 import scala.language.implicitConversions
 
@@ -40,5 +41,6 @@ object Implicits {
   implicit def SparkContext2NativeCasSparkContext(sc: SparkContext) = new NativeCassandraSparkContext(sc)
 
   implicit def SchemaRDD2CassandraSchemaRDD(table: SchemaRDD) = new CassandraSchemaRDD(table)
-  
+
+  implicit def DStream2CassandraDStreamFunctions[U](stream: DStream[U]) = new CassandraDStreamFunction[U](stream)
 }

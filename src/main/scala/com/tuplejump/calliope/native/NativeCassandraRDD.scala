@@ -67,7 +67,7 @@ private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
     val reader = format.createRecordReader(split.inputSplit.value, hadoopAttemptContext)
 
     reader.initialize(split.inputSplit.value, hadoopAttemptContext)
-    context.addOnCompleteCallback(() => close())
+    context.addTaskCompletionListener(tc => close())
 
     var havePair = false
     var finished = false

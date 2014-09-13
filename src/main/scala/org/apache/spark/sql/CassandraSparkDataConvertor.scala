@@ -132,6 +132,7 @@ object CassandraSparkDataConvertor {
 
         CassandraDataType.map(par1, par2).serialize(mapAsJavaMap(data.asInstanceOf[Map[_, _]]))
       }
+      case CassandraDataType.Name.CUSTOM => CassandraDataType.custom(data.getClass.getCanonicalName).serialize(data)
     }
   }
 }

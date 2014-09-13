@@ -42,7 +42,7 @@ private[sql] object CassandraTypeConverter {
   }
 
   private def toCollectionDataType(dataType: CassandraDataType): CatalystDataType = {
-    dataType.getName match {
+    (dataType.getName: @unchecked) match {
       case CassandraDataType.Name.LIST => {
         val argTypes = dataType.getTypeArguments
         assert(argTypes.length == 1, "Impossible situation: Invalid List Argument Types [${argTypes}]")
@@ -66,7 +66,7 @@ private[sql] object CassandraTypeConverter {
   }
 
   private def toPrimitiveDataType(dataType: CassandraDataType): CatalystDataType = {
-    dataType.getName match {
+    (dataType.getName: @unchecked) match {
       case CassandraDataType.Name.ASCII => StringType
       case CassandraDataType.Name.BIGINT => LongType
       case CassandraDataType.Name.BLOB => BinaryType

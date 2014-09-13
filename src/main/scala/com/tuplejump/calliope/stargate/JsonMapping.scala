@@ -91,6 +91,10 @@ object JsonMapping {
       case (Some(u), Some(l)) => Map("upper" -> u, "lower" -> l)
       case (None, Some(l)) => Map("lower" -> l)
       case (Some(u), None) => Map("upper" -> u)
+      case (None, None) => {
+        //This should never happen aas we are checking for either one to be defined
+        Map.empty[String, Any]
+      }
     }))
   }
 

@@ -1,21 +1,3 @@
-/*
- * Licensed to Tuplejump Software Pvt. Ltd. under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  Tuplejump Software Pvt. Ltd. licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
 
 package org.apache.spark.sql
 
@@ -105,12 +87,6 @@ trait PushdownHandler {
 object StargatePushdownHandler extends PushdownHandler {
   private[sql] def getPushdownFilters(filters: Seq[Expression]): PushdownFilters = {
     println("Using STARGATE filter")
-    /* val equals = filters.map(mapEqualsToColumnNames).filter(_.isDefined).map(_.get)
-    val gtlts = filters.map(mapGtLtToColumnNames).filter(_.isDefined).map(_.get)
-
-    val pushdown = equals.map(_._2) ++ gtlts.map(_._2)
-    val retain = filters diff pushdown */
-
     val (pushdown, retain) = filters.partition(isSupportedQuery)
 
     println(s"PUSHDOWN: $pushdown")
@@ -150,7 +126,7 @@ object StargatePushdownHandler extends PushdownHandler {
     case p@GreaterThan(Cast(left: NamedExpression, _), right: Literal) => true
     case p@GreaterThanOrEqual(left: NamedExpression, right: Literal) => true
     case p@GreaterThanOrEqual(Cast(left: NamedExpression, _), right: Literal) => true
-    case p@In(left: NamedExpression, right: Seq[Literal]) => true
+    case p@In(left: NamedExpression, right: Seq[Literal @unchecked]) => true
     case _ => false
   }
 }
@@ -225,7 +201,7 @@ case class SerCassandraDataType(dataType: CassanndraDataType.Name, param1: Optio
 object SerCassandraDataType {
   def fromDataType(dt: CassanndraDataType): SerCassandraDataType = {
     if (dt.isCollection) {
-      dt.getName match {
+      (dt.getName: @unchecked) match {
         case CassanndraDataType.Name.MAP =>
           val params = dt.getTypeArguments
           SerCassandraDataType(dt.getName, Some(params(0).getName), Some(params(1).getName))

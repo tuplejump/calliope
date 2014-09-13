@@ -60,7 +60,7 @@ object PersistDStream {
     implicit def keyMarshaller(x: (String, Int)): CQLRowKeyMap = Map("word" -> x._1)
     implicit def rowMarshaller(x: (String, Int)): CQLRowValues = List(x._2)
 
-    wordCounts.foreachRDD(_.cql3SaveToCassandra(cas))
+    wordCounts.saveToCas(cas)
     ssc.start()
   }
 }
