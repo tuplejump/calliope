@@ -1,4 +1,4 @@
 <configuration>
-    <logger name="org.apache.spark" level="TRACE"/>
-    <logger name="com.tuplejump" level="TRACE"/>
+    <logger name="org.apache.spark.sql" level="TRACE"/>
+    <logger name="com.tuplejump" level="ERROR"/>
 </configuration>

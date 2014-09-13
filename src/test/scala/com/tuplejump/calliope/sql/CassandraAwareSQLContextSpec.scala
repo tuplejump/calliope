@@ -1,3 +1,22 @@
+/*
+ * Licensed to Tuplejump Software Pvt. Ltd. under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  Tuplejump Software Pvt. Ltd. licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.tuplejump.calliope.sql
 
 import org.apache.spark.SparkContext
@@ -21,23 +40,27 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
     it("should create a SchemaRDD from Cassandra table and read the rows to it") {
       val ctable: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_INPUT_COLUMN_FAMILY)
       val schemaString = """root
-                           | |-- user_id: StringType
-                           | |-- age_in_years: IntegerType
-                           | |-- created_time: TimestampType
-                           | |-- degrees: ArrayType[StringType]
-                           | |-- email: StringType
-                           | |-- ipaddress: StringType
-                           | |-- is_married: BooleanType
-                           | |-- latitude: DoubleType
-                           | |-- longitude: DoubleType
-                           | |-- name: StringType
-                           | |-- places: ArrayType[StringType]
-                           | |-- profile: StringType
-                           | |-- props: MapType(StringType,StringType)
-                           | |-- salary: DecimalType
-                           | |-- some_big_int: DecimalType
-                           | |-- some_blob: BinaryType
-                           | |-- weight: FloatType""".stripMargin
+                           | |-- user_id: string (nullable = false)
+                           | |-- age_in_years: integer (nullable = false)
+                           | |-- created_time: timestamp (nullable = false)
+                           | |-- degrees: array (nullable = false)
+                           | |    |-- element: string (containsNull = true)
+                           | |-- email: string (nullable = false)
+                           | |-- ipaddress: string (nullable = false)
+                           | |-- is_married: boolean (nullable = false)
+                           | |-- latitude: double (nullable = false)
+                           | |-- longitude: double (nullable = false)
+                           | |-- name: string (nullable = false)
+                           | |-- places: array (nullable = false)
+                           | |    |-- element: string (containsNull = true)
+                           | |-- profile: string (nullable = false)
+                           | |-- props: map (nullable = false)
+                           | |    |-- key: string
+                           | |    |-- value: string (valueContainsNull = true)
+                           | |-- salary: decimal (nullable = false)
+                           | |-- some_big_int: decimal (nullable = false)
+                           | |-- some_blob: binary (nullable = false)
+                           | |-- weight: float (nullable = false)""".stripMargin
       ctable.printSchema()
       ctable.schemaString.trim should be(schemaString)
       val elist = ctable.collect().toList
@@ -96,7 +119,7 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
 
     it("should use multiple Cassandra Secondary indexes with AND query in sql if possible") {
       val people2: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_INPUT_COLUMN_FAMILY)
-      people2.registerAsTable("people2")
+      people2.registerTempTable("people2")
 
 
       val filteredRdd = casContext.sql("SELECT * from people2 WHERE name = 'jack' AND weight = 63.45")
@@ -113,11 +136,11 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
 
     it("should not pushdown an OR query") {
       val people2: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_INPUT_COLUMN_FAMILY)
-      people2.registerAsTable("people2")
+      people2.registerTempTable("people2")
       val filteredRdd = casContext.sql("SELECT * from people2 WHERE name = 'jack' OR weight = 63.45")
       val plan: SparkPlan = filteredRdd.queryExecution.executedPlan
       plan.expressions should have size (1)
-      plan.expressions.head.references.map(_.name) should be(Set("name", "weight"))
+      plan.expressions.head.references.map(_.name) should be(List("name", "weight"))
       plan.children should have size (1)
       plan.children.head.getClass should be(classOf[CassandraTableScan])
       val pushedDown = plan.children.head.asInstanceOf[CassandraTableScan].filters
@@ -128,11 +151,11 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
 
     it("should pushdown appropriate GT and LT queries when accompanied by an EQ query") {
       val people2: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_INPUT_COLUMN_FAMILY)
-      people2.registerAsTable("people3")
+      people2.registerTempTable("people3")
       val filteredRdd = casContext.sql("SELECT * from people3 WHERE name = 'jack' and age_in_years < 40 AND weight > 60.45")
       val plan: SparkPlan = filteredRdd.queryExecution.executedPlan
       plan.expressions should have size (1)
-      plan.expressions.head.references.map(_.name) should be(Set("age_in_years"))
+      plan.expressions.head.references.map(_.name) should be(List("age_in_years"))
       plan.children should have size (1)
       plan.children.head.getClass should be(classOf[CassandraTableScan])
       val pushedDown = plan.children.head.asInstanceOf[CassandraTableScan].filters
@@ -144,10 +167,10 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
 
     it("should not pushdown GT and LT queries when not accompanied by an EQ query") {
       val people2: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_INPUT_COLUMN_FAMILY)
-      people2.registerAsTable("people4")
+      people2.registerTempTable("people4")
       val filteredRdd = casContext.sql("SELECT * from people4 WHERE age_in_years < 40 AND weight > 60.45")
       val plan: SparkPlan = filteredRdd.queryExecution.executedPlan
-      plan.expressions.head.references.map(_.name) should be(Set("age_in_years", "weight"))
+      plan.expressions.head.references.map(_.name) should be(List("age_in_years", "weight"))
       plan.children should have size (1)
       plan.children.head.getClass should be(classOf[CassandraTableScan])
       val pushedDown = plan.children.head.asInstanceOf[CassandraTableScan].filters
@@ -171,7 +194,7 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
       val empScore1: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_CF_WITH_CLUSTERING_KEY)
       val devScores = empScore1.where('year === 2001)
       val plan: SparkPlan = devScores.queryExecution.executedPlan
-      plan.expressions.head.references.map(_.name) should be(Set("year"))
+      plan.expressions.head.references.map(_.name) should be(List("year"))
       plan.children should have size (1)
       plan.children.head.getClass should be(classOf[CassandraTableScan])
       val pushdown = plan.children.head.asInstanceOf[CassandraTableScan].filters
@@ -206,7 +229,7 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
       val empScore1: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_CF_WITH_CLUSTERING_KEY)
       val devScores = empScore1.where('dept === "ict" && 'emp === "johnny@tuplejump.com")
       val plan: SparkPlan = devScores.queryExecution.executedPlan
-      plan.expressions.head.references.map(_.name) should be(Set("emp"))
+      plan.expressions.head.references.map(_.name) should be(List("emp"))
       plan.children should have size (1)
       plan.children.head.getClass should be(classOf[CassandraTableScan])
       val pushdown = plan.children.head.asInstanceOf[CassandraTableScan].filters
@@ -219,7 +242,7 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
       val empScore1: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_CF_WITH_CLUSTERING_KEY)
       val devScores = empScore1.where('dept === "ict" && 'year > 2000 && 'emp === "johnny@tuplejump.com")
       val plan: SparkPlan = devScores.queryExecution.executedPlan
-      plan.expressions.head.references.map(_.name) should be(Set("emp"))
+      plan.expressions.head.references.map(_.name) should be(List("emp"))
       plan.children should have size (1)
       plan.children.head.getClass should be(classOf[CassandraTableScan])
       val pushdown = plan.children.head.asInstanceOf[CassandraTableScan].filters
@@ -243,10 +266,11 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
       val empScore2: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_INPUT_COLUMN_FAMILY).select('user_id, 'age_in_years, 'is_married)
       val plan = empScore2.queryExecution.executedPlan
       println(plan)
+      empScore2.printSchema()
       val schema = """root
-                     | |-- user_id: StringType
-                     | |-- age_in_years: IntegerType
-                     | |-- is_married: BooleanType""".stripMargin
+                     | |-- user_id: string (nullable = false)
+                     | |-- age_in_years: integer (nullable = false)
+                     | |-- is_married: boolean (nullable = false)""".stripMargin
       empScore2.schemaString.trim should be(schema)
       empScore2.collect().foreach {
         r => r.size should be(3)

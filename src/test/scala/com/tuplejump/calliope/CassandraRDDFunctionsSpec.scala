@@ -1,18 +1,37 @@
+/*
+ * Licensed to Tuplejump Software Pvt. Ltd. under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  Tuplejump Software Pvt. Ltd. licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.tuplejump.calliope
 
-import org.scalatest.{BeforeAndAfterAll, FunSpec}
-import org.scalatest.matchers.{MustMatchers, ShouldMatchers}
-import org.apache.spark.SparkContext
 import java.nio.ByteBuffer
 import java.util.UUID
-import com.tuplejump.calliope.utils.RichByteBuffer
-import RichByteBuffer._
+
 import com.tuplejump.calliope.Implicits._
 import com.tuplejump.calliope.Types._
+import com.tuplejump.calliope.macros.CqlRowWriter
+import com.tuplejump.calliope.utils.RichByteBuffer
+import com.tuplejump.calliope.utils.RichByteBuffer._
+import org.apache.spark.SparkContext
+import org.scalatest.matchers.{MustMatchers, ShouldMatchers}
+import org.scalatest.{BeforeAndAfterAll, FunSpec}
 
 import scala.language.implicitConversions
-import com.tuplejump.calliope.macros.CqlRowWriter
-
 
 class CassandraRDDFunctionsSpec extends FunSpec with BeforeAndAfterAll with ShouldMatchers with MustMatchers {
 
@@ -27,8 +46,7 @@ class CassandraRDDFunctionsSpec extends FunSpec with BeforeAndAfterAll with Shou
   describe("Cassandra RDD Function") {
     it("should allow persistence of any RDD to cassandra") {
 
-      import CRDDFuncTransformers._
-
+      import com.tuplejump.calliope.CRDDFuncTransformers._
 
       val data = List(
         ("Frodo", 24, "hobbit", "shire"),
@@ -52,9 +70,8 @@ class CassandraRDDFunctionsSpec extends FunSpec with BeforeAndAfterAll with Shou
     }
 
     it("should allow persistence using CQL") {
-      import CRDDFuncTransformers.EmployeeToKeys
-      import CRDDFuncTransformers.EmployeeToVal
-      import Cql3CRDDTransformers._
+      import com.tuplejump.calliope.CRDDFuncTransformers.{EmployeeToKeys, EmployeeToVal}
+      import com.tuplejump.calliope.Cql3CRDDTransformers._
 
       val data = List(
         Employee(21, 110, "alan", "turing"),
@@ -78,14 +95,13 @@ class CassandraRDDFunctionsSpec extends FunSpec with BeforeAndAfterAll with Shou
       result must have length (4)
 
       result should contain(Employee(21, 110, "alan", "turing"))
-
     }
 
     it("should allow persistence using Simple API via CQL") {
-      import Cql3CRDDTransformers._
+      import com.tuplejump.calliope.Cql3CRDDTransformers._
+      import CRDDFuncTransformers.EmployeeToMap
 
       val transformer = CqlRowWriter.columnListMapper[Employee]("deptid", "empid", "first_name", "last_name")
-      import transformer._
 
       val casrdd = sc.cql3Cassandra[Employee](CQL_TEST_KEYSPACE, CQL_TEST_OUTPUT_COLUMN_FAMILY)
       val initCount = casrdd.collect().length
@@ -103,15 +119,14 @@ class CassandraRDDFunctionsSpec extends FunSpec with BeforeAndAfterAll with Shou
         CQL_TEST_OUTPUT_COLUMN_FAMILY,
         List("deptid", "empid"), List("first_name", "last_name"))
 
-      val result = casrdd.collect()
+      val casrdd2 = sc.cql3Cassandra[Employee](CQL_TEST_KEYSPACE, CQL_TEST_OUTPUT_COLUMN_FAMILY)
+      val result = casrdd2.collect()
 
       result must have length (initCount + 4)
 
       result should contain(Employee(31, 210, "emily", "richards"))
-
     }
   }
-
 
   override def afterAll() {
     sc.stop()
@@ -120,7 +135,7 @@ class CassandraRDDFunctionsSpec extends FunSpec with BeforeAndAfterAll with Shou
 
 private object CRDDFuncTransformers {
 
-  import RichByteBuffer._
+  import com.tuplejump.calliope.utils.RichByteBuffer._
 
   implicit def rddToKey(x: (String, Int, String, String)): ThriftRowKey = {
     UUID.nameUUIDFromBytes((x._1 + x._2 + x._3 + x._4).getBytes()).toString
@@ -153,5 +168,4 @@ private object CRDDFuncTransformers {
   implicit def EmployeeToMap(e: Employee): CQLRowMap = {
     Map("deptid" -> e.deptId, "empid" -> e.empId, "first_name" -> e.firstName, "last_name" -> e.lastName)
   }
-
 }

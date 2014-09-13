@@ -1,6 +1,26 @@
+/*
+ * Licensed to Tuplejump Software Pvt. Ltd. under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  Tuplejump Software Pvt. Ltd. licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package org.apache.spark.sql
 
-import com.datastax.driver.core._
+import com.datastax.driver.core.{DataType => CassanndraDataType}
+import com.datastax.driver.core.{TableMetadata, Cluster, Metadata, KeyspaceMetadata}
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions._
@@ -200,19 +220,19 @@ object CassandraPushdownHandler extends PushdownHandler {
 
 case class PushdownFilters(filtersToPushdown: Seq[Expression], filtersToRetain: Seq[Expression])
 
-case class SerCassandraDataType(dataType: DataType.Name, param1: Option[DataType.Name], param2: Option[DataType.Name])
+case class SerCassandraDataType(dataType: CassanndraDataType.Name, param1: Option[CassanndraDataType.Name], param2: Option[CassanndraDataType.Name])
 
 object SerCassandraDataType {
-  def fromDataType(dt: DataType): SerCassandraDataType = {
+  def fromDataType(dt: CassanndraDataType): SerCassandraDataType = {
     if (dt.isCollection) {
       dt.getName match {
-        case DataType.Name.MAP =>
+        case CassanndraDataType.Name.MAP =>
           val params = dt.getTypeArguments
           SerCassandraDataType(dt.getName, Some(params(0).getName), Some(params(1).getName))
-        case DataType.Name.SET =>
+        case CassanndraDataType.Name.SET =>
           val params = dt.getTypeArguments
           SerCassandraDataType(dt.getName, Some(params(0).getName), None)
-        case DataType.Name.LIST =>
+        case CassanndraDataType.Name.LIST =>
           val params = dt.getTypeArguments
           SerCassandraDataType(dt.getName, Some(params(0).getName), None)
       }

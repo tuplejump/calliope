@@ -1,9 +1,29 @@
+/*
+ * Licensed to Tuplejump Software Pvt. Ltd. under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  Tuplejump Software Pvt. Ltd. licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package org.apache.spark.sql
 
 import com.datastax.driver.core.{Row => CassandraRow}
 import com.tuplejump.calliope.CasBuilder
 import com.tuplejump.calliope.Implicits._
 import com.tuplejump.calliope.stargate.JsonMapping.{BooleanCondition, Condition, MatchCondition, RangeCondition}
+import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.types._
@@ -14,7 +34,7 @@ case class CassandraTableScan(
                                // https://issues.apache.org/jira/browse/SPARK-1367
                                output: Seq[Attribute],
                                relation: CassandraRelation,
-                               filters: Seq[Expression])(@transient val sqlContext: SQLContext) extends LeafNode with Logging {
+                               filters: Seq[Expression]) extends LeafNode with Logging {
 
   override def execute(): RDD[Row] = {
 
@@ -28,7 +48,7 @@ case class CassandraTableScan(
       case None => buildCassandraQuery
     }
 
-    logger.info(s"Generated CQL: $queryToUse")
+    logInfo(s"Generated CQL: $queryToUse")
 
     val cas = CasBuilder.native
       .withColumnFamilyAndQuery(relation.keyspace, relation.table, queryToUse)

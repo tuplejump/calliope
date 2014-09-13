@@ -235,8 +235,8 @@ class CassandraRDDFunctions[U](self: RDD[U])
   )
   def saveToCas(keyspace: String, columnFamily: String, keyCols: List[CQLKeyColumnName], valueCols: List[CQLColumnName])
                (implicit marshaller: U => CQLRowMap) {
-
-
+    val cas = CasBuilder.cql3.withColumnFamily(keyspace, columnFamily)
+    saveToCas(cas, keyCols, valueCols)(marshaller)
   }
 
   @implicitNotFound(

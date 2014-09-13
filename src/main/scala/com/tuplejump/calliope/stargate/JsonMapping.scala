@@ -5,9 +5,6 @@ import org.codehaus.jackson.map.ObjectMapper
 
 import scala.util.parsing.json.{JSONArray, JSONObject}
 
-/**
- * User: satya
- */
 object JsonMapping {
 
   val mapper = new ObjectMapper()
