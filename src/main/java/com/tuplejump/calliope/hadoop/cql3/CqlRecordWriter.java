@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.tuplejump.calliope.Util;
 import com.tuplejump.calliope.hadoop.AbstractColumnFamilyOutputFormat;
 import com.tuplejump.calliope.hadoop.AbstractColumnFamilyRecordWriter;
 import com.tuplejump.calliope.hadoop.ConfigHelper;
@@ -350,7 +351,7 @@ final class CqlRecordWriter extends AbstractColumnFamilyRecordWriter<Map<String,
         String keyString = ByteBufferUtil.string(ByteBuffer.wrap(rawPartitionKeys.getValue()));
         logger.debug("partition keys: " + keyString);
 
-        List<String> keys = FBUtilities.fromJsonList(keyString);
+        List<String> keys = Util.parseJsonAsList(keyString);
         partitionKeyColumns = new String[keys.size()];
         int i = 0;
         for (String key : keys)
@@ -363,7 +364,7 @@ final class CqlRecordWriter extends AbstractColumnFamilyRecordWriter<Map<String,
         String clusterColumnString = ByteBufferUtil.string(ByteBuffer.wrap(rawClusterColumns.getValue()));
 
         logger.debug("cluster columns: " + clusterColumnString);
-        clusterColumns = FBUtilities.fromJsonList(clusterColumnString);
+        clusterColumns = Util.parseJsonAsList(clusterColumnString);
     }
 
     private AbstractType<?> parseType(String type) throws ConfigurationException

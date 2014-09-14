@@ -4,7 +4,7 @@ import sbt._
 object
 CalliopeBuild extends Build {
 
-  lazy val VERSION = "0.9.4-EA-SNAPSHOT"
+  lazy val VERSION = "0.9.5-EA-SNAPSHOT"
 
   lazy val CAS_VERSION = "2.0.9"
 
@@ -42,7 +42,7 @@ CalliopeBuild extends Build {
       "org.apache.spark" %% "spark-core" % SPARK_VERSION % "provided" exclude("org.apache.hadoop", "hadoop-core"),
       "org.apache.spark" %% "spark-streaming" % SPARK_VERSION % "provided",
       "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided",
-      "org.apache.hadoop" % "hadoop-client" % "2.4.0" % "provided",
+      "org.apache.hadoop" % "hadoop-client" % "1.0.4" % "provided",
       "com.github.nscala-time" %% "nscala-time" % "1.0.0",
       "org.scalatest" %% "scalatest" % "1.9.1" % "test"
     )
