@@ -22,7 +22,7 @@ package com.tuplejump.calliope.thrift
 import java.nio.ByteBuffer
 import com.tuplejump.calliope.{ThriftCasBuilder, CasBuilder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
+import org.apache.spark.{SerializableWritable, SparkContext}
 
 import com.tuplejump.calliope.Types._
 
@@ -139,7 +139,8 @@ class ThriftCassandraSparkContext(self: SparkContext) {
   def thriftCassandra[T](cas: ThriftCasBuilder)
                         (implicit unmarshaller: (ThriftRowKey, ThriftRowMap) => T,
                          tm: Manifest[T]): RDD[T] = {
-    new ThriftCassandraRDD[T](self, cas, unmarshaller)
+    val confBroadcast = self.broadcast(new SerializableWritable(cas.configuration))
+    new ThriftCassandraRDD[T](self, confBroadcast, unmarshaller)
   }
 
   /**

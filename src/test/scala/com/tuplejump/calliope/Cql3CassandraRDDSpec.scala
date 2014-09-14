@@ -43,7 +43,8 @@ class Cql3CassandraRDDSpec extends FunSpec with BeforeAndAfterAll with ShouldMat
 
   info("Describes the functionality provided by the Cassandra RDD")
 
-  val sc = new SparkContext("local[1]", "castest")
+  val sc = new SparkContext("spark://127.0.0.1:7077", "nattest")
+  //val sc = new SparkContext("local[1]", "castest")
 
   describe("Cql3 Cassandra RDD") {
     it("should be able to build and process RDD[U]") {

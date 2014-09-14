@@ -19,19 +19,21 @@
 
 package com.tuplejump.calliope.cql3
 
+import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapreduce.{TaskAttemptID, JobID, InputSplit}
+import org.apache.spark.broadcast.Broadcast
 import scala.collection.JavaConversions._
 import java.text.SimpleDateFormat
 import java.util.Date
 import com.tuplejump.calliope.hadoop.cql3.CqlPagingInputFormat
-import com.tuplejump.calliope.CasBuilder
+import com.tuplejump.calliope.{Cql3CasBuilder, CasBuilder}
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import com.tuplejump.calliope.utils.{SparkHadoopMapReduceUtil, CassandraPartition}
+
+import org.apache.hadoop.conf.{Configurable, Configuration}
 import com.tuplejump.calliope.Types._
 import scala.reflect.ClassTag
-import com.tuplejump.calliope.utils.CassandraPartition
-import com.tuplejump.calliope.utils.CassandraPartition
+import com.tuplejump.calliope.utils.{SparkHadoopMapReduceUtil, CassandraPartition}
 
 private[calliope] trait Unmarshaller[T] {
   def unmarshall(k: CQLRowKeyMap, v: CQLRowMap): T
@@ -46,15 +48,11 @@ private[calliope] case class SimpleRowUnmarshaller[T](val transform: CQLRowMap =
 }
 
 private[calliope] class Cql3CassandraRDD[T: ClassTag](sc: SparkContext,
-                                                      @transient cas: CasBuilder,
+                                                      confBroadcast: Broadcast[SerializableWritable[Configuration]],
                                                       unmarshaller: Unmarshaller[T])
   extends RDD[T](sc, Nil)
   with SparkHadoopMapReduceUtil
   with Logging {
-
-  // A Hadoop Configuration can be about 10 KB, which is pretty big, so broadcast it
-  @transient private val hadoopConf = cas.configuration
-  private val confBroadcast = sc.broadcast(new SerializableWritable(hadoopConf))
 
   @transient val jobId = new JobID(System.currentTimeMillis().toString, id)
 
@@ -75,7 +73,7 @@ private[calliope] class Cql3CassandraRDD[T: ClassTag](sc: SparkContext,
     val reader = format.createRecordReader(split.inputSplit.value, hadoopAttemptContext)
 
     reader.initialize(split.inputSplit.value, hadoopAttemptContext)
-    context.addTaskCompletionListener(tc => close())
+    context.addOnCompleteCallback(() => close())
 
     var havePair = false
     var finished = false
@@ -108,7 +106,7 @@ private[calliope] class Cql3CassandraRDD[T: ClassTag](sc: SparkContext,
 
   def getPartitions: Array[Partition] = {
 
-    val jc = newJobContext(hadoopConf, jobId)
+    val jc = newJobContext(confBroadcast.value.value, jobId)
     val inputFormat = new CqlPagingInputFormat
     val rawSplits = inputFormat.getSplits(jc).toArray
     val result = new Array[Partition](rawSplits.size)

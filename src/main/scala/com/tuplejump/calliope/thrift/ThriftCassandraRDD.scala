@@ -20,6 +20,9 @@
 package com.tuplejump.calliope.thrift
 
 import com.tuplejump.calliope.hadoop.ColumnFamilyInputFormat
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.mapred.JobConf
+import org.apache.spark.broadcast.Broadcast
 import scala.collection.JavaConversions._
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -33,15 +36,11 @@ import scala.reflect.ClassTag
 
 
 class ThriftCassandraRDD[T: ClassTag](sc: SparkContext,
-                                      @transient cas: ThriftCasBuilder,
+                                      confBroadcast: Broadcast[SerializableWritable[Configuration]],
                                       unmarshaller: (ThriftRowKey, ThriftRowMap) => T)
   extends RDD[T](sc, Nil)
   with SparkHadoopMapReduceUtil
   with Logging {
-
-  // A Hadoop Configuration can be about 10 KB, which is pretty big, so broadcast it
-  @transient private val haadoopConf = cas.configuration
-  private val confBroadcast = sc.broadcast(new SerializableWritable(haadoopConf))
 
   @transient val jobId = new JobID(System.currentTimeMillis().toString, id)
 
@@ -52,6 +51,9 @@ class ThriftCassandraRDD[T: ClassTag](sc: SparkContext,
 
   def compute(theSplit: Partition, context: TaskContext): Iterator[T] = new Iterator[T] {
     val conf = confBroadcast.value.value
+    conf.iterator().foreach{
+      prop => println(s"${prop.getKey} : ${prop.getValue}")
+    }
     val format = new ColumnFamilyInputFormat
     val split = theSplit.asInstanceOf[CassandraPartition]
     //Set configuration
@@ -62,7 +64,7 @@ class ThriftCassandraRDD[T: ClassTag](sc: SparkContext,
     val reader = format.createRecordReader(split.inputSplit.value, hadoopAttemptContext)
 
     reader.initialize(split.inputSplit.value, hadoopAttemptContext)
-    context.addTaskCompletionListener(tc => close())
+    context.addOnCompleteCallback(() => close())
 
     var havePair = false
     var finished = false
@@ -99,7 +101,7 @@ class ThriftCassandraRDD[T: ClassTag](sc: SparkContext,
 
   def getPartitions: Array[Partition] = {
 
-    val jc = newJobContext(haadoopConf, jobId)
+    val jc = newJobContext(confBroadcast.value.value, jobId)
     val inputFormat = new ColumnFamilyInputFormat()
     val rawSplits = inputFormat.getSplits(jc).toArray
     val result = new Array[Partition](rawSplits.size)

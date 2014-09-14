@@ -21,7 +21,7 @@ package com.tuplejump.calliope.cql3
 
 import com.tuplejump.calliope.{Cql3CasBuilder, CasBuilder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
+import org.apache.spark.{SerializableWritable, SparkContext}
 import com.tuplejump.calliope.Types.{CQLRowMap, CQLRowKeyMap}
 import scala.annotation.implicitNotFound
 
@@ -139,7 +139,8 @@ class Cql3CassandraSparkContext(self: SparkContext) {
   def cql3Cassandra[T](cas: Cql3CasBuilder)
                       (implicit unmarshaller: (CQLRowKeyMap, CQLRowMap) => T,
                        tm: Manifest[T]): RDD[T] = {
-    new Cql3CassandraRDD[T](self, cas, KVUnmarshaller(unmarshaller))
+    val confBroadcast = self.broadcast(new SerializableWritable(cas.configuration))
+    new Cql3CassandraRDD[T](self, confBroadcast, KVUnmarshaller(unmarshaller))
   }
 
   /**

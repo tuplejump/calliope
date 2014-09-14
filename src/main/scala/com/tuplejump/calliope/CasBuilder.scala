@@ -314,7 +314,7 @@ class ThriftCasBuilder(keyspace: String,
 
   override def configuration = {
 
-    val job = configure
+    val job = configure()
 
     val predicate = new SlicePredicate()
     columns match {
@@ -472,7 +472,7 @@ class Cql3CasBuilder(keyspace: String,
     keyspace, columnFamily, host, port, partitioner, columns, username, password, pageSize, whereClause, preparedSaveQuery, readConsistencyLevel, writeConsistencyLevel, inputSplitSize, outputCompressionClass, outputCompressionChunkLength, Some(config))
 
   override def configuration = {
-    val job = configure
+    val job = configure()
 
     val string: String = columns match {
       case Some(l: List[String]) => l.mkString(",")
@@ -632,7 +632,7 @@ class NativeCasBuilder(keyspace: String,
     }
 
     if (this.useMultiRangeSplits) {
-      CqlConfigHelper.setMultirangeInputSplit(job.getConfiguration, this.useMultiRangeSplits)
+      CqlConfigHelper.setMultirangeInputSplit(job.getConfiguration, true)
       CqlConfigHelper.setRangesInMultiRangeSplit(job.getConfiguration, this.rangesPerMultiRangeSplit.get)
     }
 

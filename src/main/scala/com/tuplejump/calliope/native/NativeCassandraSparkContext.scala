@@ -19,7 +19,9 @@
 
 package com.tuplejump.calliope.native
 
-import org.apache.spark.SparkContext
+import org.apache.hadoop.conf.Configuration
+import org.apache.spark.{SerializableWritable, SparkContext}
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import com.datastax.driver.core.Row
 import com.tuplejump.calliope.{NativeCasBuilder, CasBuilder}
@@ -79,7 +81,8 @@ class NativeCassandraSparkContext(self: SparkContext) {
     "No transformer found for Row => ${T}. You must have an implicit method defined of type Row => ${T}"
   )
   def nativeCassandra[T](cas: NativeCasBuilder)(implicit unmarshaller: Row => T, tm: Manifest[T]): RDD[T] = {
-    new NativeCassandraRDD[T](self, cas, unmarshaller)
+    val confBroadcast = self.broadcast(new SerializableWritable(cas.configuration))
+    new NativeCassandraRDD[T](self, confBroadcast, unmarshaller)
   }
 
 }

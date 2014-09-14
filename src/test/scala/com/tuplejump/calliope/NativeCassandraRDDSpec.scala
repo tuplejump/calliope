@@ -42,12 +42,23 @@ class NativeCassandraRDDSpec extends FunSpec with BeforeAndAfterAll with ShouldM
 
   info("Describes the functionality provided by the Cassandra RDD")
 
-  val sc = new SparkContext("local[1]", "nattest")
+  val sc = new SparkContext("spark://127.0.0.1:7077", "nattest")
+  sc.addJar("lib_managed/jars/org.apache.cassandra/cassandra-all/cassandra-all-2.0.9.jar")
+  sc.addJar("lib_managed/jars/org.apache.cassandra/cassandra-thrift/cassandra-thrift-2.0.9.jar")
+  sc.addJar("lib_managed/jars/org.apache.thrift/libthrift/libthrift-0.9.1.jar")
+  sc.addJar("lib_managed/bundles/com.datastax.cassandra/cassandra-driver-core/cassandra-driver-core-2.0.4.jar")
+  sc.addJar("target/scala-2.10/calliope_2.10-1.1.0-CTP-U1-SNAPSHOT.jar")
+  //val sc = new SparkContext("local[1]", "nattest")
 
   describe("Native Cassandra RDD") {
     it("should be able to build and process RDD[U]") {
-      val transformer = NativeRowReader.columnListMapper[NativeEmployee]("deptid", "empid", "first_name", "last_name")
-      import transformer._
+      /* val transformer = NativeRowReader.columnListMapper[NativeEmployee]("deptid", "empid", "first_name", "last_name")
+      import transformer._ */
+
+      implicit val transformer: Row => NativeEmployee = {
+        r =>
+          NativeEmployee(r.getInt("deptid"), r.getInt("empid"), r.getString("first_name"), r.getString("last_name"))
+      }
 
       val cas = CasBuilder.native.withColumnFamilyAndKeyColumns("cql3_test", "emp_read_test", "deptid")
 
@@ -57,7 +68,7 @@ class NativeCassandraRDDSpec extends FunSpec with BeforeAndAfterAll with ShouldM
       casrdd.count() must equal(5)
     }
 
-    it("should be able to build and process RDD[U] with multi range splits") {
+    /* it("should be able to build and process RDD[U] with multi range splits") {
       val transformer = NativeRowReader.columnListMapper[NativeEmployee]("deptid", "empid", "first_name", "last_name")
       import transformer._
 
@@ -112,7 +123,7 @@ class NativeCassandraRDDSpec extends FunSpec with BeforeAndAfterAll with ShouldM
 
       result should contain(NativeEmployee(20, 106, "john", "grumpy"))
       result should not contain (NativeEmployee(20, 105, "jack", "carpenter"))
-    }
+    } */
 
 
   }

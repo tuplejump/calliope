@@ -4,7 +4,7 @@ import sbt._
 object
 CalliopeBuild extends Build {
 
-  lazy val VERSION = "1.1.0-CTP"
+  lazy val VERSION = "1.1.0-CTP-U1-SNAPSHOT"
 
   lazy val CAS_VERSION = "2.0.9"
 
@@ -16,7 +16,7 @@ CalliopeBuild extends Build {
 
   lazy val PARADISE_VERSION = "2.0.0"
 
-  lazy val SPARK_VERSION = "1.1.0"
+  lazy val SPARK_VERSION = "1.0.2"
 
   lazy val pom = {
     <scm>
@@ -34,8 +34,8 @@ CalliopeBuild extends Build {
 
   lazy val calliope = {
     val dependencies = Seq(
-      "org.apache.cassandra" % "cassandra-all" % CAS_VERSION % "provided" intransitive(),
-      "org.apache.cassandra" % "cassandra-thrift" % CAS_VERSION % "provided" intransitive(),
+      "org.apache.cassandra" % "cassandra-all" % CAS_VERSION intransitive(),
+      "org.apache.cassandra" % "cassandra-thrift" % CAS_VERSION intransitive(),
       "net.jpountz.lz4" % "lz4" % "1.2.0",
       "org.apache.thrift" % "libthrift" % THRIFT_VERSION exclude("org.slf4j", "slf4j-api") exclude("javax.servlet", "servlet-api"),
       "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive(),

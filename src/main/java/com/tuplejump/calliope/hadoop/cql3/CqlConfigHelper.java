@@ -39,10 +39,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.*;
 import java.security.cert.CertificateException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
 
 public class CqlConfigHelper {
     private static final String INPUT_CQL_COLUMNS_CONFIG = "cassandra.input.columnfamily.columns"; // separate by colon ,
@@ -262,7 +259,8 @@ public class CqlConfigHelper {
         int port = getInputNativePort(conf);
         Optional<AuthProvider> authProvider = getAuthProvider(conf);
         Optional<SSLOptions> sslOptions = getSSLOptions(conf);
-        LoadBalancingPolicy loadBalancingPolicy = getReadLoadBalancingPolicy(conf, host);
+        String[] hosts = {host};
+        LoadBalancingPolicy loadBalancingPolicy = getReadLoadBalancingPolicy(conf, hosts);
         SocketOptions socketOptions = getReadSocketOptions(conf);
         QueryOptions queryOptions = getReadQueryOptions(conf);
         PoolingOptions poolingOptions = getReadPoolingOptions(conf);
@@ -369,20 +367,16 @@ public class CqlConfigHelper {
 
         PoolingOptions poolingOptions = new PoolingOptions();
 
-        if (coreConnections.isPresent())
-            poolingOptions.setCoreConnectionsPerHost(HostDistance.LOCAL, coreConnections.get());
-        if (maxConnections.isPresent())
-            poolingOptions.setMaxConnectionsPerHost(HostDistance.LOCAL, maxConnections.get());
-        if (maxSimultaneousRequests.isPresent())
-            poolingOptions.setMaxSimultaneousRequestsPerConnectionThreshold(HostDistance.LOCAL, maxSimultaneousRequests.get());
-        if (minSimultaneousRequests.isPresent())
-            poolingOptions.setMinSimultaneousRequestsPerConnectionThreshold(HostDistance.LOCAL, minSimultaneousRequests.get());
-
-        poolingOptions
-                .setMinSimultaneousRequestsPerConnectionThreshold(HostDistance.REMOTE, 0)
-                .setCoreConnectionsPerHost(HostDistance.REMOTE, 0)
-                .setMaxConnectionsPerHost(HostDistance.REMOTE, 0)
-                .setMaxSimultaneousRequestsPerConnectionThreshold(HostDistance.REMOTE, 0);
+        for (HostDistance hostDistance : Arrays.asList(HostDistance.LOCAL, HostDistance.REMOTE)) {
+            if (coreConnections.isPresent())
+                poolingOptions.setCoreConnectionsPerHost(hostDistance, coreConnections.get());
+            if (maxConnections.isPresent())
+                poolingOptions.setMaxConnectionsPerHost(hostDistance, maxConnections.get());
+            if (minSimultaneousRequests.isPresent())
+                poolingOptions.setMinSimultaneousRequestsPerConnectionThreshold(hostDistance, minSimultaneousRequests.get());
+            if (maxSimultaneousRequests.isPresent())
+                poolingOptions.setMaxSimultaneousRequestsPerConnectionThreshold(hostDistance, maxSimultaneousRequests.get());
+        }
 
         return poolingOptions;
     }
@@ -430,70 +424,8 @@ public class CqlConfigHelper {
         return socketOptions;
     }
 
-    private static LoadBalancingPolicy getReadLoadBalancingPolicy(Configuration conf, final String stickHost) {
-        return new LoadBalancingPolicy() {
-            private Host origHost;
-            private Set<Host> liveRemoteHosts = Sets.newHashSet();
-
-            @Override
-            public void onAdd(Host host) {
-                if (host.getAddress().getHostName().equals(stickHost))
-                    origHost = host;
-            }
-
-            @Override
-            public void onDown(Host host) {
-                if (host.getAddress().getHostName().equals(stickHost))
-                    origHost = null;
-                liveRemoteHosts.remove(host);
-            }
-
-            @Override
-            public void onRemove(Host host) {
-                if (host.getAddress().getHostName().equals(stickHost))
-                    origHost = null;
-                liveRemoteHosts.remove(host);
-            }
-
-            @Override
-            public void onUp(Host host) {
-                if (host.getAddress().getHostName().equals(stickHost))
-                    origHost = host;
-                liveRemoteHosts.add(host);
-            }
-
-            @Override
-            public void onSuspected(Host host) {
-                //ignoring this as asDown will be called when the node is really down
-            }
-
-            @Override
-            public HostDistance distance(Host host) {
-                if (host.getAddress().getHostAddress().equals(stickHost) || host.getAddress().getHostName().equals(stickHost))
-                    return HostDistance.LOCAL;
-                else
-                    return HostDistance.REMOTE;
-            }
-
-            @Override
-            public void init(Cluster cluster, Collection<Host> hosts) {
-                for (Host host : hosts) {
-                    if (host.getAddress().getHostAddress().equals(stickHost) || host.getAddress().getHostName().equals(stickHost)) {
-                        origHost = host;
-                        break;
-                    }
-                }
-            }
-
-            @Override
-            public Iterator<Host> newQueryPlan(String loggedKeyspace, Statement statement) {
-                if (origHost != null) {
-                    return Iterators.concat(Collections.singletonList(origHost).iterator(), liveRemoteHosts.iterator());
-                } else {
-                    return liveRemoteHosts.iterator();
-                }
-            }
-        };
+    private static LoadBalancingPolicy getReadLoadBalancingPolicy(Configuration conf, final String[] stickHosts) {
+        return new LimitedLocalNodeFirstLocalBalancingPolicy(stickHosts);
     }
 
     private static Optional<AuthProvider> getAuthProvider(Configuration conf) {
@@ -531,14 +463,14 @@ public class CqlConfigHelper {
         String setting = conf.get(parameter);
         if (setting == null)
             return Optional.absent();
-        return Optional.of(Integer.parseInt(setting));
+        return Optional.of(Integer.valueOf(setting));  
     }
 
     private static Optional<Boolean> getBooleanSetting(String parameter, Configuration conf) {
         String setting = conf.get(parameter);
         if (setting == null)
             return Optional.absent();
-        return Optional.of(Boolean.parseBoolean(setting));
+        return Optional.of(Boolean.valueOf(setting));  
     }
 
     private static Optional<String> getStringSetting(String parameter, Configuration conf) {

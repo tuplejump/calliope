@@ -416,15 +416,29 @@ public class ConfigHelper
 
     public static IPartitioner getInputPartitioner(Configuration conf)
     {
+        String partitionerClassName = conf.get(INPUT_PARTITIONER_CONFIG);
+        logger.info("Using partitioner: " + partitionerClassName);
+
         try
         {
-            return FBUtilities.newPartitioner(conf.get(INPUT_PARTITIONER_CONFIG));
+            return newPartitioner(partitionerClassName);
         }
         catch (ConfigurationException e)
         {
             throw new RuntimeException(e);
         }
     }
+
+    private static IPartitioner newPartitioner(String partitionerClassName) throws ConfigurationException
+    {
+        if (!partitionerClassName.contains("."))
+            partitionerClassName = "org.apache.cassandra.dht." + partitionerClassName;
+
+        IPartitioner partitioner = FBUtilities.construct(partitionerClassName, "partitioner");
+
+        return partitioner;
+    }
+
 
     public static int getOutputRpcPort(Configuration conf)
     {

@@ -19,32 +19,27 @@
 
 package com.tuplejump.calliope.native
 
-import com.tuplejump.calliope.hadoop.ConfigHelper
-
-import scala.reflect.ClassTag
-import org.apache.spark._
-import com.tuplejump.calliope.{NativeCasBuilder, CasBuilder}
-import org.apache.spark.rdd.RDD
-import com.tuplejump.calliope.utils.{CassandraPartition, SparkHadoopMapReduceUtil}
-import org.apache.hadoop.mapreduce.{InputSplit, TaskAttemptID, JobID}
 import java.text.SimpleDateFormat
 import java.util.Date
-import com.tuplejump.calliope.hadoop.cql3.CqlInputFormat
-import com.datastax.driver.core.Row
-import scala.collection.JavaConversions._
 
+import com.datastax.driver.core.Row
+import com.tuplejump.calliope.hadoop.cql3.{CqlConfigHelper, CqlInputFormat}
+import com.tuplejump.calliope.utils.{CassandraPartition, SparkHadoopMapReduceUtil}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.mapreduce.{InputSplit, JobID, TaskAttemptID}
+import org.apache.spark._
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.rdd.RDD
+
+import scala.collection.JavaConversions._
+import scala.reflect.ClassTag
 
 private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
-                                                        @transient cas: CasBuilder,
+                                                        confBroadcast: Broadcast[SerializableWritable[Configuration]],
                                                         unmarshaller: Row => T)
   extends RDD[T](sc, Nil)
   with SparkHadoopMapReduceUtil
   with Logging {
-
-  // A Hadoop Configuration can be about 10 KB, which is pretty big, so broadcast it
-  @transient private val hadoopConf = cas.configuration
-  private val confBroadcast = sc.broadcast(new SerializableWritable(hadoopConf))
-
   @transient val jobId = new JobID(System.currentTimeMillis().toString, id)
 
   private val jobtrackerId: String = {
@@ -58,16 +53,19 @@ private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
     val split = theSplit.asInstanceOf[CassandraPartition]
     logInfo("Input split: " + split.inputSplit)
 
+    conf.iterator().foreach(e => logInfo(s"${e.getKey}: ${e.getValue}"))
+
+    logInfo("Using MultiRangeSplit: " + CqlConfigHelper.getMultiRangeInputSplit(conf))
+
     //Set configuration
     val attemptId = new TaskAttemptID(jobtrackerId, id, true, split.index, 0)
     val hadoopAttemptContext = newTaskAttemptContext(conf, attemptId)
-
 
     logInfo(s"Will create record reader for ${format}")
     val reader = format.createRecordReader(split.inputSplit.value, hadoopAttemptContext)
 
     reader.initialize(split.inputSplit.value, hadoopAttemptContext)
-    context.addTaskCompletionListener(tc => close())
+    context.addOnCompleteCallback(() => close())
 
     var havePair = false
     var finished = false
@@ -107,7 +105,7 @@ private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
   def getPartitions: Array[Partition] = {
 
     logInfo("Building partitions")
-    val jc = newJobContext(hadoopConf, jobId)
+    val jc = newJobContext(confBroadcast.value.value, jobId)
     val inputFormat = new CqlInputFormat
     val rawSplits = inputFormat.getSplits(jc).toArray
     val result = new Array[Partition](rawSplits.size)

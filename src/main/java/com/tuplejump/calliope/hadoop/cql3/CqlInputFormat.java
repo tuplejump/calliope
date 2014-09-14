@@ -79,7 +79,6 @@ public class CqlInputFormat extends AbstractColumnFamilyInputFormat<Long, Row> {
         return new CqlRecordReader();
     }
 
-
     @Override
     public List<InputSplit> getSplits(JobContext context) throws IOException {
         List<InputSplit> splits = super.getSplits(context);
