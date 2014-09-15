@@ -51,6 +51,4 @@ class CassandraAwareHiveContext(sc: SparkContext) extends HiveContext(sc) with C
 
   @transient
   override protected[sql] val planner = hivePlanner
-  println(planner)
-
 }

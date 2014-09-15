@@ -41,9 +41,9 @@ protected[sql] trait CassandraStrategies {
    * table scan operator.
    *
    *
-   * TODO: This code is based on ParquetConversion. Original comment from there: Much of this logic is
+   * TODO: This code is based on ParquetConversion. Original comment from there: "Much of this logic is
    * duplicated in HiveTableScan.  Ideally we would do some refactoring but since this is after the
-   * code freeze for 1.1 all logic is here to minimize disruption.
+   * code freeze for 1.1 all logic is here to minimize disruption."
    *
    * Other issues:
    * - Much of this logic assumes case insensitive resolution.

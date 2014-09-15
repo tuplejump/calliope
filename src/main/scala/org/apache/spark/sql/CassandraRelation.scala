@@ -15,7 +15,7 @@ case class CassandraRelation(host: String, nativePort: String,
                              @transient conf: Option[Configuration] = None,
                              mayUseStartgate: Boolean = false)
   extends LeafNode with MultiInstanceRelation {
-  @transient private[sql] val cassandraSchema: TableMetadata = getCassandraSchema(host, nativePort, keyspace, table)
+  @transient private[sql] val cassandraSchema: TableMetadata = CassandraSchemaHelper.getCassandraTableSchema(host, nativePort, keyspace, table)
 
   assert(cassandraSchema != null, s"Invalid Keyspace [$keyspace] or Table [$table] ")
 
@@ -32,7 +32,8 @@ case class CassandraRelation(host: String, nativePort: String,
   override val output: Seq[Attribute] = CassandraTypeConverter.convertToAttributes(cassandraSchema)
 
   private val isStargatePermitted = mayUseStartgate || (conf match {
-    case Some(c) => c.get("calliope.stargate.enable") == "true" || c.get(s"calliope.stargate.$keyspace.$table.enable") == "true"
+    case Some(c) =>
+      c.get(CalliopeSqlSettings.enableStargateKey) == "true" || c.get(s"calliope.stargate.$keyspace.$table.enable") == "true"
     case None => false
   })
 
@@ -51,16 +52,25 @@ case class CassandraRelation(host: String, nativePort: String,
       case None => CassandraPushdownHandler.getPushdownFilters(filters, partitionKeys, clusteringKeys, indexes)
     }
   }
+}
 
-  private def getCassandraSchema(host: String, port: String, keyspace: String, columnFamily: String): TableMetadata = {
+object CassandraSchemaHelper {
+
+
+  private[sql] def getCassandraTableSchema(host: String, port: String, keyspace: String, columnFamily: String): TableMetadata = {
     require(keyspace != null, "Unable to read schema: keyspace is null")
     require(columnFamily != null, "Unable to read schema: columnFamily is null")
 
-    val driver = new Cluster.Builder().addContactPoint(host).withPort(port.toInt).build().connect()
-    val clusterMeta: Metadata = driver.getCluster.getMetadata
+    val clusterMeta: Metadata = getCassandraMetadata(host, port)
     val keyspaceMeta: KeyspaceMetadata = clusterMeta.getKeyspace( s""""${keyspace}"""")
     val tableMeta = keyspaceMeta.getTable( s""""${columnFamily}"""")
     tableMeta
+  }
+
+  def getCassandraMetadata(host: String, port: String): Metadata = {
+    val driver = new Cluster.Builder().addContactPoint(host).withPort(port.toInt).build().connect()
+    val clusterMeta: Metadata = driver.getCluster.getMetadata
+    clusterMeta
   }
 }
 

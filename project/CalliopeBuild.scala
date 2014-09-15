@@ -16,7 +16,7 @@ CalliopeBuild extends Build {
 
   lazy val PARADISE_VERSION = "2.0.0"
 
-  lazy val SPARK_VERSION = "1.0.2"
+  lazy val SPARK_VERSION = "1.1.0"
 
   lazy val pom = {
     <scm>

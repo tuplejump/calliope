@@ -23,9 +23,11 @@ import com.datastax.driver.core.{DataType => CassandraDataType}
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
+import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 
+import scala.collection.JavaConversions._
 import scala.util.{Failure, Success, Try}
 
 class CassandraAwareSQLContext(sc: SparkContext) extends SQLContext(sc) with CassandraAwareSQLContextFunctions {
@@ -46,8 +48,8 @@ class CassandraAwareSQLContext(sc: SparkContext) extends SQLContext(sc) with Cas
   }
 }
 
-trait CassandraAwareSQLContextFunctions {
-  self: SQLContext =>
+object CalliopeSqlSettings {
+  final val enableStargateKey: String = "calliope.stargate.enable"
 
   final val cassandraHostKey = "spark.cassandra.connection.host"
 
@@ -55,28 +57,48 @@ trait CassandraAwareSQLContextFunctions {
 
   final val cassandraRpcPortKey = "spark.cassandra.connection.rpc.port"
 
-  private val cassandraHost: String = Try(sparkContext.getConf.get(cassandraHostKey)) match {
-    case Success(host) => host
-    case Failure(ex) => "127.0.0.1"
-  }
+  final val loadCassandraTablesKey = "spark.cassandra.auto.load.tables"
 
-  private val cassandraNativePort: String = Try(sparkContext.getConf.get(cassandraNativePortKey)) match {
-    case Success(port) => port
-    case Failure(ex) => "9042"
-  }
+}
 
-  private val cassandraRpcPort: String = Try(sparkContext.getConf.get(cassandraRpcPortKey)) match {
-    case Success(port) => port
-    case Failure(ex) => "9160"
-  }
+trait CassandraAwareSQLContextFunctions {
+  self: SQLContext =>
+
+  private val cassandraHost: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraHostKey, "127.0.0.1")
+
+  private val cassandraNativePort: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraNativePortKey,"9042")
+
+  private val cassandraRpcPort: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraRpcPortKey,"9160")
+
+  private val loadCassandraTables = sparkContext.getConf.getBoolean(CalliopeSqlSettings.loadCassandraTablesKey, false)
 
   def cassandraTable(keyspace: String, table: String): SchemaRDD = cassandraTable(cassandraHost, cassandraNativePort, keyspace, table)
 
   def cassandraTable(keyspace: String, table: String, mayUseStargate: Boolean): SchemaRDD = cassandraTable(cassandraHost, cassandraNativePort, keyspace, table, mayUseStargate)
 
   def cassandraTable(host: String, port: String, keyspace: String, table: String, mayUseStargate: Boolean = false): SchemaRDD = {
-    //Cassaandra Thrift port is not used in this case
+    //Cassandra Thrift port is not used in this case
     new SchemaRDD(this, CassandraRelation(host, port, cassandraRpcPort, keyspace, table, Some(sparkContext.hadoopConfiguration), mayUseStargate))
+  }
+
+  def allCassandraTables(host: String, port: String, mayUseStargate: Boolean = false){
+    val meta = CassandraSchemaHelper.getCassandraMetadata(host, port)
+    meta.getKeyspaces.foreach {
+      case keyspace if(!keyspace.getName.startsWith("system")) =>
+        keyspace.getTables.foreach {
+          table =>
+            val ksName: String = keyspace.getName
+            val tableName: String = table.getName
+            val casRdd = cassandraTable(host, port, ksName, tableName, mayUseStargate)
+
+            self.catalog.unregisterTable(Some(ksName), tableName)
+            self.catalog.registerTable(Some(ksName), tableName, casRdd.logicalPlan)
+        }
+    }
+  }
+
+  if(loadCassandraTables){
+    allCassandraTables(cassandraHost, cassandraNativePort)
   }
 }
 
@@ -97,7 +119,12 @@ protected[sql] trait CassandraAwarePlanner {
         val relation = CassandraRelation(host, nativePort, rpcPort, keyspace, table)
         WriteToCassandra(relation, planLater(logicalPlan)) :: Nil
 
-      case _ => Nil
+      case logical.InsertIntoTable(relation: CassandraRelation, partition, child, overwrite) =>
+        WriteToCassandra(relation, planLater(child)) :: Nil
+
+      case ops =>
+        logInfo(s"Cassandra Operations doesn't handle $ops")
+        Nil
     }
 
     def selectFilters(relation: CassandraRelation)(condition: Expression => Boolean): (Seq[Expression]) => Seq[Expression] = {
