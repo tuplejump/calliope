@@ -77,7 +77,7 @@ case class CassandraTableScan(
       s"$baseQuery AND $idxColumn = '{ filter: $stargateQuery }'"
     } + " ALLOW FILTERING"
 
-    println(s"Querying with: $queryToUse")
+    logInfo(s"Querying with: $queryToUse")
     queryToUse
   }
 

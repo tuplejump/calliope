@@ -265,7 +265,6 @@ class CassandraAwareSQLContextSpec extends FunSpec with BeforeAndAfterAll with S
     it("should select only the requested columns") {
       val empScore2: SchemaRDD = casContext.cassandraTable(TEST_KEYSPACE, TEST_INPUT_COLUMN_FAMILY).select('user_id, 'age_in_years, 'is_married)
       val plan = empScore2.queryExecution.executedPlan
-      println(plan)
       empScore2.printSchema()
       val schema = """root
                      | |-- user_id: string (nullable = false)

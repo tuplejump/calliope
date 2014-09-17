@@ -34,21 +34,16 @@ class CassandraSchemaRDD(@transient _sqlContext: SQLContext,
 
   final val cassandraRpcPortKey = "spark.cassandra.connection.rpc.port"
 
-  private val cassandraHost: String = Try(sqlContext.sparkContext.getConf.get(cassandraHostKey)) match {
-    case Success(host) => host
-    case Failure(ex) => "127.0.0.1"
-  }
+  private val cassandraHost: String = sqlContext.sparkContext.getConf.get(cassandraHostKey, "127.0.0.1")
 
+  private val cassandraNativePort: String = sqlContext.sparkContext.getConf.get(cassandraNativePortKey, "9042")
 
-  private val cassandraNativePort: String = Try(sqlContext.sparkContext.getConf.get(cassandraNativePortKey)) match {
-    case Success(port) => port
-    case Failure(ex) => "9042"
-  }
+  private val cassandraRpcPort: String = sqlContext.sparkContext.getConf.get(cassandraRpcPortKey, "9160")
 
-  private val cassandraRpcPort: String = Try(sqlContext.sparkContext.getConf.get(cassandraRpcPortKey)) match {
-    case Success(port) => port
-    case Failure(ex) => "9160"
-  }
+  private val cassandraUsername = sparkContext.getConf.getOption(CalliopeSqlSettings.cassandraUsernameKey)
+
+  private val cassandraPassword = sparkContext.getConf.getOption(CalliopeSqlSettings.casssandraPasswordKey)
+
 
   @transient override protected[spark] val logicalPlan: LogicalPlan = baseLogicalPlan match {
     case _: SaveToCassandra =>
@@ -65,16 +60,49 @@ class CassandraSchemaRDD(@transient _sqlContext: SQLContext,
 
   def this(schemaRdd: SchemaRDD) = this(schemaRdd.sqlContext, schemaRdd.baseLogicalPlan)
 
+  /**
+   *
+   * @param keyspace
+   * @param table
+   */
   def saveToCassandra(keyspace: String, table: String): Unit = {
     saveToCassandra(cassandraHost, cassandraNativePort, cassandraRpcPort, keyspace, table)
   }
 
+
+  /**
+   *
+   * @param host
+   * @param nativePort
+   * @param rpcPort
+   * @param keyspace
+   * @param table
+   */
   def saveToCassandra(host: String, nativePort: String, rpcPort: String, keyspace: String, table: String): Unit = {
-    sqlContext.executePlan(SaveToCassandra(host, nativePort, rpcPort, keyspace, table, logicalPlan)).toRdd
+    sqlContext.executePlan(SaveToCassandra(host, nativePort, rpcPort, keyspace, table,
+      cassandraUsername, cassandraPassword, logicalPlan)).toRdd
+  }
+
+  /**
+   *
+   * @param host
+   * @param nativePort
+   * @param rpcPort
+   * @param keyspace
+   * @param table
+   * @param username
+   * @param password
+   */
+  def saveToCassandra(host: String, nativePort: String, rpcPort: String, keyspace: String, table: String, username: String, password: String): Unit = {
+    sqlContext.executePlan(SaveToCassandra(host, nativePort, rpcPort, keyspace, table,
+      Some(username), Some(password), logicalPlan)).toRdd
   }
 }
 
-case class SaveToCassandra(host: String, nativePort: String, rpcPort: String, keyspace: String, table: String, child: LogicalPlan) extends UnaryNode {
+case class SaveToCassandra(host: String, nativePort: String, rpcPort: String,
+                           keyspace: String, table: String, username: Option[String], password:Option[String],
+                           child: LogicalPlan) extends UnaryNode {
+
   override def output = child.output
 }
 

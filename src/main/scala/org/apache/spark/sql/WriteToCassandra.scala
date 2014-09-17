@@ -36,7 +36,7 @@ case class WriteToCassandra(relation: CassandraRelation, child: SparkPlan) exten
     val childRdd = child.execute()
 
     val keyColumns = relation.partitionKeys ++ relation.clusteringKeys
-    val columnsWithTypes: List[(String, SerCassandraDataType)] = relation.columns.toList
+    val columnsWithTypes: List[(String, SerCassandraDataType)] = relation.columns.filter(me => columnMap.contains(me._1)).toList
     val valueColumns = columnsWithTypes.map(_._1) diff keyColumns
 
     implicit val sparkRow2casRowMap: Row => CQLRowMap = {
@@ -46,10 +46,6 @@ case class WriteToCassandra(relation: CassandraRelation, child: SparkPlan) exten
             colName -> CassandraSparkDataConvertor.serializeValue(row(columnMap(colName)), sdtype)
         }.toMap
     }
-
-    println("SAVING TO CASSANDRA")
-    println(keyColumns)
-    println(valueColumns)
 
     childRdd.saveToCas(relation.host, relation.rpcPort, relation.keyspace, relation.table, keyColumns, valueColumns)
 

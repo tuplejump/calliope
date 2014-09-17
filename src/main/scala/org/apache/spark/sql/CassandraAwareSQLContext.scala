@@ -28,7 +28,6 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.JavaConversions._
-import scala.util.{Failure, Success, Try}
 
 class CassandraAwareSQLContext(sc: SparkContext) extends SQLContext(sc) with CassandraAwareSQLContextFunctions {
   self =>
@@ -57,8 +56,11 @@ object CalliopeSqlSettings {
 
   final val cassandraRpcPortKey = "spark.cassandra.connection.rpc.port"
 
-  final val loadCassandraTablesKey = "spark.cassandra.auto.load.tables"
+  final val cassandraUsernameKey = "spark.cassandra.auth.username"
 
+  final val casssandraPasswordKey = "spark.cassandra.auth.password"
+
+  final val loadCassandraTablesKey = "spark.cassandra.auto.load.tables"
 }
 
 trait CassandraAwareSQLContextFunctions {
@@ -66,39 +68,129 @@ trait CassandraAwareSQLContextFunctions {
 
   private val cassandraHost: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraHostKey, "127.0.0.1")
 
-  private val cassandraNativePort: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraNativePortKey,"9042")
+  private val cassandraNativePort: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraNativePortKey, "9042")
 
-  private val cassandraRpcPort: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraRpcPortKey,"9160")
+  private val cassandraRpcPort: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraRpcPortKey, "9160")
 
   private val loadCassandraTables = sparkContext.getConf.getBoolean(CalliopeSqlSettings.loadCassandraTablesKey, false)
 
-  def cassandraTable(keyspace: String, table: String): SchemaRDD = cassandraTable(cassandraHost, cassandraNativePort, keyspace, table)
+  private val cassandraUsername = sparkContext.getConf.getOption(CalliopeSqlSettings.cassandraUsernameKey)
 
-  def cassandraTable(keyspace: String, table: String, mayUseStargate: Boolean): SchemaRDD = cassandraTable(cassandraHost, cassandraNativePort, keyspace, table, mayUseStargate)
+  private val cassandraPassword = sparkContext.getConf.getOption(CalliopeSqlSettings.casssandraPasswordKey)
 
-  def cassandraTable(host: String, port: String, keyspace: String, table: String, mayUseStargate: Boolean = false): SchemaRDD = {
-    //Cassandra Thrift port is not used in this case
-    new SchemaRDD(this, CassandraRelation(host, port, cassandraRpcPort, keyspace, table, Some(sparkContext.hadoopConfiguration), mayUseStargate))
+  /**
+   * Create an SchemaRDD for the mentioned Cassandra Table using configured host and port
+   * @param keyspace Keyspace to connect to
+   * @param table Table to connect to
+   * @return
+   */
+  def cassandraTable(keyspace: String, table: String): SchemaRDD = {
+    cassandraTable(cassandraHost, cassandraNativePort, keyspace, table, false)
   }
 
-  def allCassandraTables(host: String, port: String, mayUseStargate: Boolean = false){
+  /**
+   * Create an SchemaRDD for the mentioned Cassandra Table using configured host and port
+   * @param keyspace Keyspace to connect to
+   * @param table Table to connect to
+   * @param mayUseStargate Should this SchemaRDD use Stargate for applying predicates
+   * @return
+   */
+  def cassandraTable(keyspace: String, table: String, mayUseStargate: Boolean): SchemaRDD = {
+    cassandraTable(cassandraHost, cassandraNativePort, keyspace, table, mayUseStargate)
+  }
+
+  /**
+   * Create an SchemaRDD for the mentioned Cassandra Table
+   * @param host Initial node in the cassandra cluster to connect to
+   * @param port The Cassandra Native transport port
+   * @param keyspace Keyspace to connect to
+   * @param table Table to connect to
+   * @param mayUseStargate Should this SchemaRDD use Stargate for applying predicates
+   * @return
+   */
+  def cassandraTable(host: String, port: String, keyspace: String, table: String,
+                     mayUseStargate: Boolean): SchemaRDD = {
+    cassandraTable(host, port, keyspace, table, cassandraUsername, cassandraPassword, mayUseStargate)
+  }
+
+  /**
+   * Create an SchemaRDD for the mentioned Cassandra Table
+   * @param host Initial node in the cassandra cluster to connect to
+   * @param port The Cassandra Native transport port
+   * @param keyspace Keyspace to connect to
+   * @param table Table to connect to
+   * @param username Username of the user with access to Cassandra cluster
+   * @param password Password of the user to connect to Cassandra
+   * @param mayUseStargate Should this SchemaRDD use Stargate for applying predicates
+   * @return
+   */
+  def cassandraTable(host: String, port: String, keyspace: String, table: String,
+                     username: String, password: String,
+                     mayUseStargate: Boolean): SchemaRDD = {
+    cassandraTable(host, port, keyspace, table, Some(username), Some(password), mayUseStargate)
+  }
+
+  /*
+   * Create an SchemaRDD for the mentioned Cassandra Table
+   * @param host
+   * @param port
+   * @param keyspace
+   * @param table
+   * @param username
+   * @param password
+   * @param mayUseStargate
+   * @return
+   */
+  private def cassandraTable(host: String, port: String, keyspace: String, table: String,
+                             username: Option[String], password: Option[String],
+                             mayUseStargate: Boolean): SchemaRDD = {
+
+    //Cassandra Thrift port is not used in this case
+    new SchemaRDD(this,
+      CassandraRelation(host,
+        port,
+        cassandraRpcPort,
+        keyspace,
+        table,
+        self,
+        username,
+        password,
+        mayUseStargate,
+        Some(sparkContext.hadoopConfiguration)))
+  }
+
+  /**
+   * Register all the Cassandra keyspace and tables with SparkSQL
+   * @param host Host to initiate connection with
+   * @param port Native Cassandra transport port
+   * @param username Username of the user with access to Cassandra cluster
+   * @param password Password of the user to connect to Cassandra
+   * @param mayUseStargate Should we be using stargate index for data filtering
+   */
+  def allCassandraTables(host: String = cassandraHost, port: String = cassandraNativePort,
+                         username: Option[String] = cassandraUsername, password: Option[String] = cassandraPassword,
+                         mayUseStargate: Boolean = false) {
+
     val meta = CassandraSchemaHelper.getCassandraMetadata(host, port)
     meta.getKeyspaces.foreach {
-      case keyspace if(!keyspace.getName.startsWith("system")) =>
+      case keyspace if (!keyspace.getName.startsWith("system")) =>
         keyspace.getTables.foreach {
           table =>
             val ksName: String = keyspace.getName
             val tableName: String = table.getName
-            val casRdd = cassandraTable(host, port, ksName, tableName, mayUseStargate)
+            val casRdd = cassandraTable(host, port, ksName, tableName, username, password, mayUseStargate)
 
-            self.catalog.unregisterTable(Some(ksName), tableName)
-            self.catalog.registerTable(Some(ksName), tableName, casRdd.logicalPlan)
+            self.catalog.unregisterTable(None, s"$ksName.$tableName")
+            self.catalog.registerTable(None, s"$ksName.$tableName", casRdd.logicalPlan)
+
+            logInfo(s"Registered C* table: $ksName.$tableName")
         }
+      case _ => Nil
     }
   }
 
-  if(loadCassandraTables){
-    allCassandraTables(cassandraHost, cassandraNativePort)
+  if (loadCassandraTables) {
+    allCassandraTables()
   }
 }
 
@@ -115,8 +207,10 @@ protected[sql] trait CassandraAwarePlanner {
 
         pruneFilterProject(projectList, filters, { f => pushdownFilters.filtersToRetain}, scan) :: Nil
 
-      case SaveToCassandra(host, nativePort, rpcPort, keyspace, table, logicalPlan) =>
-        val relation = CassandraRelation(host, nativePort, rpcPort, keyspace, table)
+      case SaveToCassandra(host, nativePort, rpcPort, keyspace, table, username, password, logicalPlan) =>
+        val relation = CassandraRelation(host, nativePort, rpcPort, keyspace, table, sqlContext,
+          username, password, false, Some(sparkContext.hadoopConfiguration))
+
         WriteToCassandra(relation, planLater(logicalPlan)) :: Nil
 
       case logical.InsertIntoTable(relation: CassandraRelation, partition, child, overwrite) =>

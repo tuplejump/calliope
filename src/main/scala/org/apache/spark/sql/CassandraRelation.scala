@@ -1,9 +1,9 @@
 
 package org.apache.spark.sql
 
-import com.datastax.driver.core.{DataType => CassanndraDataType}
-import com.datastax.driver.core.{TableMetadata, Cluster, Metadata, KeyspaceMetadata}
+import com.datastax.driver.core.{Cluster, KeyspaceMetadata, Metadata, TableMetadata, DataType => CassanndraDataType}
 import org.apache.hadoop.conf.Configuration
+import org.apache.spark.Logging
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.logical.LeafNode
@@ -12,10 +12,14 @@ import scala.collection.JavaConversions._
 
 case class CassandraRelation(host: String, nativePort: String,
                              rpcPort: String, keyspace: String, table: String,
-                             @transient conf: Option[Configuration] = None,
-                             mayUseStartgate: Boolean = false)
+                             @transient sqlContext: SQLContext,
+                             cassandraUsername: Option[String] = None,
+                             cassandraPassword: Option[String] = None,
+                             mayUseStartgate: Boolean = false,
+                             @transient conf: Option[Configuration] = None)
   extends LeafNode with MultiInstanceRelation {
-  @transient private[sql] val cassandraSchema: TableMetadata = CassandraSchemaHelper.getCassandraTableSchema(host, nativePort, keyspace, table)
+  @transient private[sql] val cassandraSchema: TableMetadata =
+    CassandraSchemaHelper.getCassandraTableSchema(host, nativePort, keyspace, table, cassandraUsername, cassandraPassword)
 
   assert(cassandraSchema != null, s"Invalid Keyspace [$keyspace] or Table [$table] ")
 
@@ -23,11 +27,23 @@ case class CassandraRelation(host: String, nativePort: String,
 
   private[sql] val clusteringKeys: List[String] = cassandraSchema.getClusteringColumns.map(_.getName).toList
 
-  private[sql] val columns: Map[String, SerCassandraDataType] = cassandraSchema.getColumns.map(c => c.getName -> SerCassandraDataType.fromDataType(c.getType)).toMap
+  private[sql] val columns: Map[String, SerCassandraDataType] = cassandraSchema.getColumns.map{
+    c => c.getName -> SerCassandraDataType.fromDataType(c.getType)
+  }.toMap
 
   private val indexes: List[String] = cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getName).toList
 
-  override def newInstance() = new CassandraRelation(host, nativePort, rpcPort, keyspace, table, conf, mayUseStartgate).asInstanceOf[this.type]
+  override def newInstance() =
+    new CassandraRelation(host,
+      nativePort,
+      rpcPort,
+      keyspace,
+      table,
+      sqlContext,
+      cassandraUsername,
+      cassandraPassword,
+      mayUseStartgate,
+      conf).asInstanceOf[this.type]
 
   override val output: Seq[Attribute] = CassandraTypeConverter.convertToAttributes(cassandraSchema)
 
@@ -52,12 +68,21 @@ case class CassandraRelation(host: String, nativePort: String,
       case None => CassandraPushdownHandler.getPushdownFilters(filters, partitionKeys, clusteringKeys, indexes)
     }
   }
+
+  //TODO: Find better way of getting estimated result sizes from Cassandra
+  override lazy val statistics: Statistics =
+    Statistics(sizeInBytes = sqlContext.defaultSizeInBytes)
 }
 
-object CassandraSchemaHelper {
+private[sql] object CassandraSchemaHelper {
 
+  private[sql] def getCassandraTableSchema(host: String,
+                                           port: String,
+                                           keyspace: String,
+                                           columnFamily: String,
+                                           cassandraUsername: Option[String],
+                                           cassandraPassword: Option[String]): TableMetadata = {
 
-  private[sql] def getCassandraTableSchema(host: String, port: String, keyspace: String, columnFamily: String): TableMetadata = {
     require(keyspace != null, "Unable to read schema: keyspace is null")
     require(columnFamily != null, "Unable to read schema: columnFamily is null")
 
@@ -74,7 +99,7 @@ object CassandraSchemaHelper {
   }
 }
 
-trait PushdownHandler {
+private[sql] trait PushdownHandler {
   protected[sql] def mapEqualsToColumnNames: Expression => Option[(String, Expression)] = {
     case p@EqualTo(left: NamedExpression, right: Literal) => Some(left.name -> p)
     case p@EqualTo(Cast(left: NamedExpression, _), right: Literal) => Some(left.name -> p)
@@ -94,12 +119,12 @@ trait PushdownHandler {
   }
 }
 
-object StargatePushdownHandler extends PushdownHandler {
+object StargatePushdownHandler extends PushdownHandler with Logging {
   private[sql] def getPushdownFilters(filters: Seq[Expression]): PushdownFilters = {
-    println("Using STARGATE filter")
+    logInfo("Using STARGATE filter")
     val (pushdown, retain) = filters.partition(isSupportedQuery)
 
-    println(s"PUSHDOWN: $pushdown")
+    logInfo(s"PUSHDOWN: $pushdown")
 
     PushdownFilters(pushdown, retain)
   }
@@ -136,7 +161,7 @@ object StargatePushdownHandler extends PushdownHandler {
     case p@GreaterThan(Cast(left: NamedExpression, _), right: Literal) => true
     case p@GreaterThanOrEqual(left: NamedExpression, right: Literal) => true
     case p@GreaterThanOrEqual(Cast(left: NamedExpression, _), right: Literal) => true
-    case p@In(left: NamedExpression, right: Seq[Literal @unchecked]) => true
+    case p@In(left: NamedExpression, right: Seq[Literal@unchecked]) => true
     case _ => false
   }
 }

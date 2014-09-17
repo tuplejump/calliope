@@ -1,5 +1,7 @@
 import sbt.Keys._
 import sbt._
+import sbtassembly.Plugin._
+import AssemblyKeys._
 
 object
 CalliopeBuild extends Build {
@@ -48,7 +50,7 @@ CalliopeBuild extends Build {
       "org.scalatest" %% "scalatest" % "1.9.1" % "test"
     )
 
-    val calliopeSettings = Seq(
+    val calliopeSettings = assemblySettings ++ Seq(
       name := "calliope",
 
       organization := "com.tuplejump",
@@ -96,8 +98,10 @@ CalliopeBuild extends Build {
 
       //javaOptions in Test := Seq("-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"),
 
-      fork in Test := true
-    )
+      fork in Test := true,
+
+      test in assembly := {}
+    ) 
 
     Project(
       id = "calliope",
