@@ -1,12 +1,11 @@
 import sbt.Keys._
 import sbt._
+import sbtassembly.Plugin.AssemblyKeys._
 import sbtassembly.Plugin._
-import AssemblyKeys._
 
-object
-CalliopeBuild extends Build {
+object CalliopeBuild extends Build {
 
-  lazy val VERSION = "1.1.0-CTP-U1-SNAPSHOT"
+  lazy val VERSION = "1.1.0-CTP-U2-SNAPSHOT"
 
   lazy val CAS_VERSION = "2.0.9"
 
@@ -34,133 +33,125 @@ CalliopeBuild extends Build {
       </developers>
   }
 
-  lazy val calliope = {
-    val dependencies = Seq(
-      "org.apache.cassandra" % "cassandra-all" % CAS_VERSION intransitive(),
-      "org.apache.cassandra" % "cassandra-thrift" % CAS_VERSION intransitive(),
-      "net.jpountz.lz4" % "lz4" % "1.2.0",
-      "org.apache.thrift" % "libthrift" % THRIFT_VERSION exclude("org.slf4j", "slf4j-api") exclude("javax.servlet", "servlet-api"),
-      "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive(),
-      "org.apache.spark" %% "spark-core" % SPARK_VERSION % "provided" exclude("org.apache.hadoop", "hadoop-core"),
-      "org.apache.spark" %% "spark-streaming" % SPARK_VERSION % "provided",
-      "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided",
-      "org.apache.spark" %% "spark-hive" % SPARK_VERSION % "provided",
-      "org.apache.hadoop" % "hadoop-client" % "1.0.4" % "provided",
-      "com.github.nscala-time" %% "nscala-time" % "1.0.0",
-      "org.scalatest" %% "scalatest" % "1.9.1" % "test"
-    )
+  val dependencies = Seq(
+    "org.apache.cassandra" % "cassandra-all" % CAS_VERSION intransitive(),
+    "org.apache.cassandra" % "cassandra-thrift" % CAS_VERSION intransitive(),
+    "net.jpountz.lz4" % "lz4" % "1.2.0",
+    "org.apache.thrift" % "libthrift" % THRIFT_VERSION exclude("org.slf4j", "slf4j-api") exclude("javax.servlet", "servlet-api"),
+    "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive(),
+    "org.apache.spark" %% "spark-core" % SPARK_VERSION % "provided" exclude("org.apache.hadoop", "hadoop-core"),
+    "org.apache.spark" %% "spark-streaming" % SPARK_VERSION % "provided",
+    "org.apache.hadoop" % "hadoop-client" % "1.0.4" % "provided",
+    "com.github.nscala-time" %% "nscala-time" % "1.0.0",
+    "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+  )
 
-    val calliopeSettings = assemblySettings ++ Seq(
-      name := "calliope",
+  val commonSettings = Project.defaultSettings ++ Seq(
+    organization := "com.tuplejump",
+    version := VERSION,
+    scalaVersion := SCALA_VERSION,
+    scalacOptions := "-deprecation" :: "-unchecked" :: "-feature" :: Nil,
+    parallelExecution in Test := false,
+    pomExtra := pom,
+    publishArtifact in Test := false,
+    pomIncludeRepository := {
+      _ => false
+    },
+    publishMavenStyle := true,
+    retrieveManaged := true,
+    publishTo <<= version {
+      (v: String) =>
+        val nexus = "https://oss.sonatype.org/"
+        if (v.trim.endsWith("SNAPSHOT"))
+          Some("snapshots" at nexus + "content/repositories/snapshots")
+        else
+          Some("releases" at nexus + "service/local/staging/deploy/maven2")
+    },
+    licenses := Seq("Apache License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    homepage := Some(url("https://tuplejump.github.io/calliope")),
+    organizationName := "Tuplejump, Inc.",
+    organizationHomepage := Some(url("http://www.tuplejump.com")),
+    resolvers ++= Seq("Akka Repository" at "http://repo.akka.io/releases/"),
+    fork in Test := true,
+    test in assembly := {}
+  ) ++ net.virtualvoid.sbt.graph.Plugin.graphSettings
 
-      organization := "com.tuplejump",
-
+  lazy val macros: Project = Project(
+    id = "calliope-macros",
+    base = file("macros"),
+    settings = commonSettings ++ Seq(
       version := VERSION,
+      addCompilerPlugin("org.scalamacros" % "paradise" % PARADISE_VERSION cross CrossVersion.full),
+      libraryDependencies ++= Seq("org.scalamacros" %% "quasiquotes" % PARADISE_VERSION,
+        "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive()),
+      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
+      scalacOptions := "-Ymacro-debug-lite" :: "-deprecation" :: "-unchecked" :: "-feature" :: Nil
+    )
+  )
 
-      scalaVersion := SCALA_VERSION,
-
-      scalacOptions := "-deprecation" :: "-unchecked" :: "-feature" :: Nil,
-
-      libraryDependencies ++= dependencies,
-
-      parallelExecution in Test := false,
-
-      pomExtra := pom,
-
-      publishArtifact in Test := false,
-
-      pomIncludeRepository := {
-        _ => false
-      },
-
-      publishMavenStyle := true,
-
-      retrieveManaged := true,
-
-      publishTo <<= version {
-        (v: String) =>
-          val nexus = "https://oss.sonatype.org/"
-          if (v.trim.endsWith("SNAPSHOT"))
-            Some("snapshots" at nexus + "content/repositories/snapshots")
-          else
-            Some("releases" at nexus + "service/local/staging/deploy/maven2")
-      },
-
-      licenses := Seq("Apache License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-
-      homepage := Some(url("https://tuplejump.github.io/calliope")),
-
-      organizationName := "Tuplejump, Inc.",
-
-      organizationHomepage := Some(url("http://www.tuplejump.com")),
-
-      resolvers ++= Seq("Akka Repository" at "http://repo.akka.io/releases/"),
-
+  lazy val calliope = {
+    val calliopeSettings = commonSettings ++ Seq(
+      name := "calliope",
+      libraryDependencies ++= dependencies
       //javaOptions in Test := Seq("-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"),
-
-      fork in Test := true,
-
-      test in assembly := {}
-    ) 
+    )
 
     Project(
       id = "calliope",
-      base = file("."),
-      settings = Project.defaultSettings ++ calliopeSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings
+      base = file("core"),
+      settings = calliopeSettings
     ) dependsOn (macros) aggregate (macros)
   }
 
-  lazy val macros = Project(
-    id = "calliope-macros",
-
-    base = file("macros"),
-
+  lazy val calliopeSql: Project = Project(
+    id = "calliope-sql",
+    base = file("sql/core"),
     settings = Project.defaultSettings ++ Seq(
       version := VERSION,
-
-      addCompilerPlugin("org.scalamacros" % "paradise" % PARADISE_VERSION cross CrossVersion.full),
-
-      libraryDependencies ++= Seq("org.scalamacros" %% "quasiquotes" % PARADISE_VERSION,
-        "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive()),
-
-      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
-
-      scalacOptions := "-Ymacro-debug-lite" :: "-deprecation" :: "-unchecked" :: "-feature" :: Nil,
-
-      organization := "com.tuplejump",
-
-      scalacOptions := "-deprecation" :: "-unchecked" :: "-feature" :: Nil,
-
-      parallelExecution in Test := false,
-
-      pomExtra := pom,
-
-      publishArtifact in Test := false,
-
-      pomIncludeRepository := {
-        _ => false
-      },
-
-      publishMavenStyle := true,
-
-      retrieveManaged := true,
-
-      publishTo <<= version {
-        (v: String) =>
-          val nexus = "https://oss.sonatype.org/"
-          if (v.trim.endsWith("SNAPSHOT"))
-            Some("snapshots" at nexus + "content/repositories/snapshots")
-          else
-            Some("releases" at nexus + "service/local/staging/deploy/maven2")
-      },
-
-      licenses := Seq("Apache License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-
-      homepage := Some(url("https://tuplejump.github.io/calliope")),
-
-      organizationName := "Tuplejump, Inc.",
-
-      organizationHomepage := Some(url("http://www.tuplejump.com"))
+      libraryDependencies ++= dependencies ++ Seq("org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided")
     )
-  )
+  ) dependsOn (calliope)
+
+  lazy val calliopeHive: Project = Project(
+    id = "calliope-hive",
+    base = file("sql/hive"),
+    settings = Project.defaultSettings ++ Seq(
+      version := VERSION,
+      libraryDependencies ++= dependencies ++ Seq(
+        "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided",
+        "org.apache.spark" %% "spark-hive" % SPARK_VERSION % "provided"
+          exclude("commons-beanutils", "commons-beanutils-core")
+          exclude("commons-collections", "commons-collections")
+          exclude("commons-logging", "commons-logging-api"))
+    )
+  ) dependsOn (calliopeSql)
+
+  lazy val calliopeServer: Project = Project(
+    id = "calliope-server",
+    base = file("sql/server"),
+    settings = commonSettings ++ assemblySettings ++ Seq(
+      version := VERSION,
+      libraryDependencies ++= dependencies ++ Seq(
+        /* "org.spark-project.hive" % "hive-service" % "0.12.0" exclude("org.jboss.netty", "netty")
+          exclude("commons-beanutils", "commons-beanutils-core")
+          exclude("commons-collections", "commons-collections")
+          exclude("commons-logging", "commons-logging-api"), */
+        "org.spark-project.hive" % "hive-cli" % "0.12.0" exclude("org.jboss.netty", "netty")
+          exclude("commons-beanutils", "commons-beanutils-core")
+          exclude("commons-collections", "commons-collections")
+          exclude("commons-logging", "commons-logging-api")
+          excludeAll (ExclusionRule(organization = "org.datanucleus")),
+        "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided"
+          exclude("commons-beanutils", "commons-beanutils-core")
+          exclude("commons-collections", "commons-collections")
+          exclude("commons-logging", "commons-logging-api"),
+        "org.apache.spark" %% "spark-hive" % SPARK_VERSION % "provided"
+          exclude("commons-beanutils", "commons-beanutils-core")
+          exclude("commons-collections", "commons-collections")
+          exclude("commons-logging", "commons-logging-api")
+      )
+    )
+  ) dependsOn (calliopeHive)
+
+  val root = Project("calliope-root", base = file(".")).aggregate(macros, calliope, calliopeSql, calliopeHive, calliopeServer)
 }
