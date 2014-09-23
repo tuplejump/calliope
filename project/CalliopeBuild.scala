@@ -58,7 +58,6 @@ object CalliopeBuild extends Build {
       _ => false
     },
     publishMavenStyle := true,
-    retrieveManaged := true,
     publishTo <<= version {
       (v: String) =>
         val nexus = "https://oss.sonatype.org/"
@@ -85,19 +84,20 @@ object CalliopeBuild extends Build {
       libraryDependencies ++= Seq("org.scalamacros" %% "quasiquotes" % PARADISE_VERSION,
         "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive()),
       libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
-      scalacOptions := "-Ymacro-debug-lite" :: "-deprecation" :: "-unchecked" :: "-feature" :: Nil
+      //scalacOptions := "-Ymacro-debug-lite" :: "-deprecation" :: "-unchecked" :: "-feature" :: Nil
+      scalacOptions := "-deprecation" :: "-unchecked" :: "-feature" :: Nil
     )
   )
 
   lazy val calliope = {
     val calliopeSettings = commonSettings ++ Seq(
-      name := "calliope",
+      name := "calliope-core",
       libraryDependencies ++= dependencies
       //javaOptions in Test := Seq("-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"),
     )
 
     Project(
-      id = "calliope",
+      id = "calliope-core",
       base = file("core"),
       settings = calliopeSettings
     ) dependsOn (macros) aggregate (macros)
@@ -153,5 +153,20 @@ object CalliopeBuild extends Build {
     )
   ) dependsOn (calliopeHive)
 
-  val root = Project("calliope-root", base = file(".")).aggregate(macros, calliope, calliopeSql, calliopeHive, calliopeServer)
+  lazy val jdbcDriver: Project = Project(
+    id="calliope-jdbc",
+    base=file("sql/jdbc"),
+    settings = commonSettings ++ assemblySettings ++  Seq(
+      version := VERSION,
+      libraryDependencies ++= Seq(
+        "org.spark-project.hive" % "hive-jdbc" % "0.12.0" exclude("org.jboss.netty", "netty")
+          exclude("commons-beanutils", "commons-beanutils-core")
+          exclude("commons-collections", "commons-collections")
+          exclude("commons-logging", "commons-logging-api")
+          excludeAll (ExclusionRule(organization = "org.datanucleus"))
+      )
+    )
+  )
+
+  val root = Project("calliope-root", base = file(".")).aggregate(macros, calliope, calliopeSql, calliopeHive, calliopeServer, jdbcDriver)
 }

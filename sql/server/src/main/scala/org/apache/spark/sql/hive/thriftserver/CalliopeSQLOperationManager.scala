@@ -17,15 +17,20 @@
 
 package org.apache.spark.sql.hive.thriftserver
 
-import java.sql.Timestamp
+import java.sql.{DatabaseMetaData, Timestamp}
+import java.util
 import java.util.{Map => JMap}
 
+import com.datastax.driver.core.KeyspaceMetadata
 import com.tuplejump.calliope.server.ReflectionUtils
+import com.tuplejump.calliope.sql.{CassandraProperties, CassandraSchemaHelper}
 import org.apache.hadoop.hive.common.`type`.HiveDecimal
+import org.apache.hadoop.hive.metastore.TableType
 import org.apache.hadoop.hive.metastore.api.FieldSchema
 import org.apache.hive.service.cli._
-import org.apache.hive.service.cli.operation.{ExecuteStatementOperation, Operation, OperationManager}
+import org.apache.hive.service.cli.operation._
 import org.apache.hive.service.cli.session.HiveSession
+import org.apache.hive.service.cli.thrift.TColumnValue
 import org.apache.spark.Logging
 import org.apache.spark.sql.catalyst.plans.logical.SetCommand
 import org.apache.spark.sql.catalyst.types._
@@ -35,6 +40,7 @@ import org.apache.spark.sql.{SQLConf, SchemaRDD, Row => SparkRow}
 import scala.collection.JavaConversions._
 import scala.collection.mutable.{ArrayBuffer, Map}
 import scala.math.{random, round}
+import scala.util.matching.Regex
 
 /**
  * Executes queries using Spark SQL, and maintains a list of handles to active queries.
@@ -209,4 +215,321 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
    handleToOperation.put(operation.getHandle, operation)
    operation
   }
+
+  override def newGetCatalogsOperation(parentSession: HiveSession): GetCatalogsOperation = {
+    val operation: GetCatalogsOperation = new GetCatalogsOperation(parentSession){
+      override def run(): Unit = {
+        println("Running GetCatalogsOperation")
+        super.run()
+        val rowSet = ReflectionUtils.getSuperField[RowSet](this, "rowSet")
+        val rows = ReflectionUtils.getPrivateField[java.util.ArrayList[Row]](rowSet, "rows")
+        println(rows)
+        //setSuperField(obj : Object, fieldName: String, fieldValue: Object)
+      }
+    }
+
+    handleToOperation.put(operation.getHandle, operation)
+    return operation
+  }
+
+  override def newGetSchemasOperation(parentSession: HiveSession, catalogName: String, schemaName: String): GetSchemasOperation = {
+    val operation: GetSchemasOperation = new GetSchemasOperation(parentSession, catalogName, schemaName){
+      val schemaNameI = schemaName
+      private val RESULT_SET_SCHEMA = ReflectionUtils.getSuperField[TableSchema](this, "RESULT_SET_SCHEMA")
+
+      override def run(): Unit = {
+        println("Running GetSchemasOperation")
+        super.run()
+        val rowSet = ReflectionUtils.getSuperField[RowSet](this, "rowSet")
+        val rows = ReflectionUtils.getPrivateField[util.ArrayList[Row]](rowSet, "rows")
+        printRows(rows)
+        val patternString:String = if(schemaNameI.isEmpty){
+          "(.*)"
+        } else{
+          val subpatterns: Array[String] = convertPattern(schemaNameI).trim.split("\\|")
+          s"(?i)(${subpatterns.mkString(" || ")})"
+        }
+
+        println(s"PATTERN: $patternString")
+
+        val pattern = patternString.r
+
+        val cassandraProperties = CassandraProperties(hiveContext.sparkContext)
+
+        val cassandraMeta = CassandraSchemaHelper.getCassandraMetadata(cassandraProperties.cassandraHost,
+          cassandraProperties.cassandraNativePort,
+          cassandraProperties.cassandraUsername,
+          cassandraProperties.cassandraPassword)
+
+        if(cassandraMeta != null){
+          cassandraMeta.getKeyspaces.map(_.getName).foreach {
+            case pattern(dbname) =>
+              println(s"Adding $dbname")
+              rowSet.addRow(RESULT_SET_SCHEMA, Array(dbname, ""));
+            case _ => //Do nothing
+          }
+        }
+
+        ReflectionUtils.setSuperField(this, "rowSet", rowSet)
+      }
+    }
+    handleToOperation.put(operation.getHandle, operation)
+    operation
+  }
+
+  def printRows(rows: util.ArrayList[Row]) {
+    println("[[")
+    rows.foreach(println)
+    println("]]")
+  }
+
+  private def convertPattern(pattern: String): String = {
+  val wStr = ".*"
+  pattern.replaceAll("([^\\\\])%", "$1" + wStr).replaceAll("\\\\%", "%").replaceAll("^%", wStr)
+}
+
+  override def newGetTablesOperation(parentSession: HiveSession, catalogName: String, schemaName: String, tableName: String, tableTypes: util.List[String]): MetadataOperation = {
+    val operation: MetadataOperation = new GetTablesOperation(parentSession, catalogName, schemaName, tableName, tableTypes) {
+      private val RESULT_SET_SCHEMA = ReflectionUtils.getSuperField[TableSchema](this, "RESULT_SET_SCHEMA")
+
+      val schemaNameI = schemaName
+      val tableNameI = tableName
+
+      override def run(): Unit = {
+        println("Running GetTablesOperation")
+        super.run()
+        val rowSet = ReflectionUtils.getSuperField[RowSet](this, "rowSet")
+        val rows = ReflectionUtils.getPrivateField[java.util.ArrayList[Row]](rowSet, "rows")
+        printRows(rows)
+
+        val schemaPattern = if(schemaNameI.isEmpty){
+          "(.*)"
+        } else{
+          val subpatterns: Array[String] = convertPattern(schemaNameI).trim.split("\\|")
+          s"(?i)(${subpatterns.mkString(" || ")})"
+        }
+
+
+        val cassandraProperties = CassandraProperties(hiveContext.sparkContext)
+
+        val cassandraMeta = CassandraSchemaHelper.getCassandraMetadata(cassandraProperties.cassandraHost,
+          cassandraProperties.cassandraNativePort,
+          cassandraProperties.cassandraUsername,
+          cassandraProperties.cassandraPassword)
+
+        if (cassandraMeta != null) {
+          val tablePattern = if(tableNameI == null || tableNameI.isEmpty){
+            "(.*)"
+          } else{
+            val subpatterns: Array[String] = convertPattern(schemaNameI).trim.split("\\|")
+            s"(?i)(${subpatterns.mkString(" || ")})"
+          }
+
+
+          cassandraMeta.getKeyspaces.filter(k => (!k.getName.startsWith("system")) && k.getName.matches(schemaPattern)).foreach {
+            ks =>
+              ks.getTables.filter(_.getName.matches(tablePattern)).foreach {
+                tbl =>
+                  println(s"Adding table: ${tbl.getName}")
+                  val rowData: Array[AnyRef] = Array[AnyRef](
+                    "",
+                    "",
+                    s"${ks.getName}.${tbl.getName}",
+                    "CASSANDRA_TABLES",
+                    tbl.getOptions.getComment)
+
+                  rowSet.addRow(RESULT_SET_SCHEMA, rowData)
+              }
+          }
+
+          ReflectionUtils.setSuperField(this, "rowSet", rowSet)
+        }
+      }
+    }
+    handleToOperation.put(operation.getHandle, operation)
+    operation
+  }
+
+  override def newGetTableTypesOperation(parentSession: HiveSession): GetTableTypesOperation = {
+    val operation: GetTableTypesOperation = new GetTableTypesOperation(parentSession){
+      private val RESULT_SET_SCHEMA = ReflectionUtils.getSuperField[TableSchema](this, "RESULT_SET_SCHEMA")
+
+      override def run(): Unit = {
+        println("Running GetTableTypesOperation")
+        super.run()
+        val rowSet = ReflectionUtils.getSuperField[RowSet](this, "rowSet")
+        val rows = ReflectionUtils.getPrivateField[java.util.ArrayList[Row]](rowSet, "rows")
+        printRows(rows)
+        rowSet.addRow(RESULT_SET_SCHEMA, Array("CASSANDRA_TABLES"))
+
+        ReflectionUtils.setSuperField(this, "rowSet", rowSet)
+      }
+    }
+    handleToOperation.put(operation.getHandle, operation)
+    operation
+  }
+
+  override def newGetColumnsOperation(parentSession: HiveSession, catalogName: String, schemaName: String, tableName: String, columnName: String): GetColumnsOperation = {
+    val operation: GetColumnsOperation = new GetColumnsOperation(parentSession, catalogName, schemaName, tableName, columnName){
+      private val RESULT_SET_SCHEMA = ReflectionUtils.getSuperField[TableSchema](this, "RESULT_SET_SCHEMA")
+
+      override def run(): Unit = {
+        println(s"Running GetColumnsOperation $schemaName : $tableName")
+
+        val keyspace = if(schemaName == null || schemaName.isEmpty || schemaName.equals("*")) {
+          val splits = tableName.split("\\.")
+          splits(0)
+        }else {
+          schemaName
+        }
+        println(s"Checking keyspace: $keyspace")
+
+        val cassandraProperties = CassandraProperties(hiveContext.sparkContext)
+
+        val cassandraMeta = CassandraSchemaHelper.getCassandraMetadata(cassandraProperties.cassandraHost,
+          cassandraProperties.cassandraNativePort,
+          cassandraProperties.cassandraUsername,
+          cassandraProperties.cassandraPassword)
+
+        val keyspaceMeta: KeyspaceMetadata = if(cassandraMeta != null) cassandraMeta.getKeyspace(keyspace) else null
+        println(keyspaceMeta)
+        if (keyspaceMeta != null) {
+          val rowSet = new RowSet()
+          val tableStr = if(tableName.contains(".")) tableName.split("\\.")(1) else tableName
+          setState(OperationState.RUNNING)
+          val table = keyspaceMeta.getTable(tableStr)
+
+          table.getColumns.zipWithIndex.foreach {
+            case (column, idx) =>
+            val rowData: Array[AnyRef] = Array(
+              null,
+              "",
+              s"$keyspace.$tableStr",
+              column.getName,
+              toJavaSqlType(column.getType),
+              column.getType.getName.toString,
+              getTypeSize(column.getType),
+              null,
+              getDecimalDigits(column.getType),
+              getNumPrecRadix(column.getType),
+              new Integer(DatabaseMetaData.columnNullable),
+              "",
+              null,
+              null,
+              null,
+              null,
+              new Integer(idx),
+              "YES",
+              null,
+              null,
+              null,
+              null,
+              "NO")
+
+            rowSet.addRow(RESULT_SET_SCHEMA, rowData)
+          }
+
+          ReflectionUtils.setSuperField(this, "rowSet", rowSet)
+          setState(OperationState.FINISHED)
+        } else {
+          super.run()
+          val rowSet = ReflectionUtils.getSuperField[RowSet](this, "rowSet")
+          val rows = ReflectionUtils.getPrivateField[java.util.ArrayList[Row]](rowSet, "rows")
+          printRows(rows)
+        }
+      }
+    }
+    handleToOperation.put(operation.getHandle, operation)
+    operation
+  }
+
+  import com.datastax.driver.core.{DataType => CassandraDataType}
+  private def toJavaSqlType(dataType: CassandraDataType): Integer = {
+    dataType.getName match {
+      case CassandraDataType.Name.ASCII => java.sql.Types.VARCHAR
+      case CassandraDataType.Name.BIGINT => java.sql.Types.BIGINT
+      case CassandraDataType.Name.BLOB => java.sql.Types.BLOB
+      case CassandraDataType.Name.BOOLEAN => java.sql.Types.BOOLEAN
+      case CassandraDataType.Name.COUNTER => java.sql.Types.BIGINT
+      case CassandraDataType.Name.DECIMAL => java.sql.Types.DECIMAL
+      case CassandraDataType.Name.DOUBLE => java.sql.Types.DOUBLE
+      case CassandraDataType.Name.FLOAT => java.sql.Types.FLOAT
+      case CassandraDataType.Name.INT => java.sql.Types.INTEGER
+      case CassandraDataType.Name.TEXT => java.sql.Types.VARCHAR
+      case CassandraDataType.Name.VARINT => java.sql.Types.DECIMAL //Big Integer is treated as BigDecimal by Catalyst
+      case CassandraDataType.Name.INET => java.sql.Types.VARCHAR //TODO: Stopgap solution
+      case CassandraDataType.Name.UUID => java.sql.Types.VARCHAR //TODO: Stopgap solution
+      case CassandraDataType.Name.TIMEUUID => java.sql.Types.VARCHAR //TODO: Stopgap solution
+      case CassandraDataType.Name.TIMESTAMP => java.sql.Types.TIMESTAMP
+      case CassandraDataType.Name.CUSTOM => java.sql.Types.BLOB //TODO: Stopgap solution. Explore use of UDF
+      case CassandraDataType.Name.MAP => java.sql.Types.VARCHAR
+      case CassandraDataType.Name.SET => java.sql.Types.VARCHAR
+      case CassandraDataType.Name.LIST => java.sql.Types.VARCHAR
+      case CassandraDataType.Name.VARCHAR => java.sql.Types.VARCHAR
+    }
+  }
+
+  private def getTypeSize(dataType: CassandraDataType): Integer = {
+    dataType.getName match {
+      case CassandraDataType.Name.ASCII => Integer.MAX_VALUE
+      case CassandraDataType.Name.VARCHAR => Integer.MAX_VALUE
+      case CassandraDataType.Name.BLOB => Integer.MAX_VALUE
+      case CassandraDataType.Name.TIMESTAMP => 30
+      case _ => null
+    }
+  }
+
+  private def getDecimalDigits(dataType: CassandraDataType): Integer = {
+    dataType.getName match {
+      case CassandraDataType.Name.BIGINT => 0
+      case CassandraDataType.Name.BOOLEAN => 0
+      case CassandraDataType.Name.COUNTER => 0
+      case CassandraDataType.Name.INT => 0
+      case CassandraDataType.Name.FLOAT => 7
+      case CassandraDataType.Name.DOUBLE => 15
+      case _ => null
+    }
+  }
+
+
+  private def getPrecision(dataType: CassandraDataType): Integer = {
+    dataType.getName match {
+      case CassandraDataType.Name.INT => 10
+      case CassandraDataType.Name.BIGINT => 19
+      case CassandraDataType.Name.FLOAT => 7
+      case CassandraDataType.Name.DOUBLE => 15
+      case _ => null
+    }
+  }
+
+  /**
+   * Scale for this type.
+   */
+  private def getScale(dataType: CassandraDataType): Integer = {
+    dataType.getName match {
+      case CassandraDataType.Name.BIGINT => 0
+      case CassandraDataType.Name.BOOLEAN => 0
+      case CassandraDataType.Name.COUNTER => 0
+      case CassandraDataType.Name.INT => 0
+      case CassandraDataType.Name.FLOAT => 7
+      case CassandraDataType.Name.DOUBLE => 15
+      case CassandraDataType.Name.DECIMAL => Integer.MAX_VALUE
+      case CassandraDataType.Name.VARINT => Integer.MAX_VALUE
+      case _ => null
+    }
+  }
+
+  private def getNumPrecRadix(dataType: CassandraDataType): Integer = {
+    dataType.getName match {
+      case CassandraDataType.Name.BIGINT => 10
+      case CassandraDataType.Name.COUNTER => 10
+      case CassandraDataType.Name.INT => 10
+      case CassandraDataType.Name.DECIMAL => 10
+      case CassandraDataType.Name.VARINT => 10
+      case CassandraDataType.Name.FLOAT => 2
+      case CassandraDataType.Name.DOUBLE => 2
+      case _ => null
+    }
+  }
+
 }

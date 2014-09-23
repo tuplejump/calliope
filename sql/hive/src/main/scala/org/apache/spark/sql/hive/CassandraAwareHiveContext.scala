@@ -19,10 +19,11 @@
 
 package org.apache.spark.sql.hive
 
+import com.tuplejump.calliope.sql.CassandraAwareSQLContextFunctions
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.catalyst.analysis.{Catalog, OverrideCatalog}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, LowerCaseSchema}
-import org.apache.spark.sql.{CassandraAwarePlanner, CassandraAwareSQLContextFunctions, CassandraCatalog, SQLContext}
+import org.apache.spark.sql.{CassandraAwarePlanner, CassandraCatalog, SQLContext}
 
 class CassandraAwareHiveContext(sc: SparkContext) extends HiveContext(sc) with CassandraAwareSQLContextFunctions {
   self =>

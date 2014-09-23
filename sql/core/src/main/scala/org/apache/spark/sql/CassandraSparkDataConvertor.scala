@@ -38,7 +38,7 @@ object CassandraSparkDataConvertor {
         try {
           readTypedValue(crow, column, crow.getColumnDefinitions.getType(column))
         } catch {
-          case _ => null //TODO: Find a better way to handle this
+          case _: Throwable => null //TODO: Find a better way to handle this
         }
     }.toArray
   }

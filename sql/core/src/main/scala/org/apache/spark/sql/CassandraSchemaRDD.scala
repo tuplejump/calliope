@@ -19,31 +19,22 @@
 
 package org.apache.spark.sql
 
+import com.tuplejump.calliope.sql.CalliopeSqlSettings
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.SparkLogicalPlan
 
-import scala.util.{Failure, Success, Try}
-
 class CassandraSchemaRDD(@transient _sqlContext: SQLContext,
-                              @transient _baseLogicalPlan: LogicalPlan) extends SchemaRDD(_sqlContext, _baseLogicalPlan) {
+                         @transient _baseLogicalPlan: LogicalPlan) extends SchemaRDD(_sqlContext, _baseLogicalPlan) {
 
+  private val cassandraHost: String = sqlContext.sparkContext.getConf.get(CalliopeSqlSettings.cassandraHostKey, "127.0.0.1")
 
-  final val cassandraHostKey = "spark.cassandra.connection.host"
+  private val cassandraNativePort: String = sqlContext.sparkContext.getConf.get(CalliopeSqlSettings.cassandraNativePortKey, "9042")
 
-  final val cassandraNativePortKey = "spark.cassandra.connection.native.port"
-
-  final val cassandraRpcPortKey = "spark.cassandra.connection.rpc.port"
-
-  private val cassandraHost: String = sqlContext.sparkContext.getConf.get(cassandraHostKey, "127.0.0.1")
-
-  private val cassandraNativePort: String = sqlContext.sparkContext.getConf.get(cassandraNativePortKey, "9042")
-
-  private val cassandraRpcPort: String = sqlContext.sparkContext.getConf.get(cassandraRpcPortKey, "9160")
+  private val cassandraRpcPort: String = sqlContext.sparkContext.getConf.get(CalliopeSqlSettings.cassandraRpcPortKey, "9160")
 
   private val cassandraUsername = sparkContext.getConf.getOption(CalliopeSqlSettings.cassandraUsernameKey)
 
   private val cassandraPassword = sparkContext.getConf.getOption(CalliopeSqlSettings.casssandraPasswordKey)
-
 
   @transient override protected[spark] val logicalPlan: LogicalPlan = baseLogicalPlan match {
     case _: SaveToCassandra =>
@@ -68,7 +59,6 @@ class CassandraSchemaRDD(@transient _sqlContext: SQLContext,
   def saveToCassandra(keyspace: String, table: String): Unit = {
     saveToCassandra(cassandraHost, cassandraNativePort, cassandraRpcPort, keyspace, table)
   }
-
 
   /**
    *
@@ -100,7 +90,7 @@ class CassandraSchemaRDD(@transient _sqlContext: SQLContext,
 }
 
 case class SaveToCassandra(host: String, nativePort: String, rpcPort: String,
-                           keyspace: String, table: String, username: Option[String], password:Option[String],
+                           keyspace: String, table: String, username: Option[String], password: Option[String],
                            child: LogicalPlan) extends UnaryNode {
 
   override def output = child.output

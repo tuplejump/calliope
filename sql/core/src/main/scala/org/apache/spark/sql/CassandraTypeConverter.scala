@@ -68,6 +68,7 @@ private[sql] object CassandraTypeConverter {
   private def toPrimitiveDataType(dataType: CassandraDataType): CatalystDataType = {
     (dataType.getName: @unchecked) match {
       case CassandraDataType.Name.ASCII => StringType
+      case CassandraDataType.Name.VARCHAR => StringType
       case CassandraDataType.Name.BIGINT => LongType
       case CassandraDataType.Name.BLOB => BinaryType
       case CassandraDataType.Name.BOOLEAN => BooleanType

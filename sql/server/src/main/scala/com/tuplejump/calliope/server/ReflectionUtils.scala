@@ -40,6 +40,12 @@ object ReflectionUtils {
     field.get(clazz).asInstanceOf[T]
   }
 
+  def getPrivateField[T](obj: AnyRef, fieldName: String): T ={
+    val field = obj.getClass.getDeclaredField(fieldName)
+    field.setAccessible(true)
+    field.get(obj).asInstanceOf[T]
+  }
+
   def invokeStatic(clazz: Class[_], methodName: String, args: (Class[_], AnyRef)*): AnyRef = {
     invoke(clazz, null, methodName, args: _*)
   }

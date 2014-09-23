@@ -73,7 +73,8 @@ private[calliope] class Cql3CassandraRDD[T: ClassTag](sc: SparkContext,
     val reader = format.createRecordReader(split.inputSplit.value, hadoopAttemptContext)
 
     reader.initialize(split.inputSplit.value, hadoopAttemptContext)
-    context.addOnCompleteCallback(() => close())
+    //context.addOnCompleteCallback(() => close())
+    context.addTaskCompletionListener(f => close())
 
     var havePair = false
     var finished = false
