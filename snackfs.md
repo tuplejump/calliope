@@ -20,7 +20,7 @@ Some major issues we had with HDFS were,
 
 ## So how does SnackFS solve these?
 
-SnackFS is what we call a *fat client* filesystem, in the sense that all the filesystem meta information and the logic to work with the filesystem resides in the client. SnackFS doesn't have any server-side code, except Cassandra. It relies on Cassandra for data storage, replication, reliability and high availability. THe advantage is,
+SnackFS is what we call a *fat client* filesystem, in the sense that all the filesystem meta information and the logic to work with the filesystem resides in the client. SnackFS doesn't have any server-side code, except Cassandra. It relies on Cassandra for data storage, replication, reliability and high availability. The advantage is,
 
 * Cassandra is easy to deploy, bootstrap and maintain as compared to Hadoop/HDFS
 * In Cassandra their is no *master*

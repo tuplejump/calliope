@@ -49,11 +49,19 @@ implicit def rowMarshaller(x: (String, Int)): CQLRowValues = List(x._2)
 
 4. Setup the result stream to persist
 
-Once the processing pipeline is set, you can setup a function to persist the RDDs in DStream to C*.
+Once the processing pipeline is set, you can setup a function to persist the RDDs in DStream to C* using the new API,
 
 ```scala
 
-wordCounts.foreach(_ cql3SaveToCassandra cas)
+wordCounts.saveToCas(cas)
+
+```
+
+Or using the traditional approach,
+
+```scala
+
+wordCounts.foreach(_.cql3SaveToCassandra(cas))
 
 ```
 
@@ -64,6 +72,16 @@ Start the streaming
 ```scala
 
 ssc.start()
+
+```
+
+##SnackFS  for checkpointing
+
+One of the things that most of the other Cassandra Spark libraries miss out is the need for a DFS for streaming checkpoint in reduceByKey and updateStateByKey operations. Calliope utilizes SnackFS for this purpose. You can set the checkpoint directory to point it to [snackfs](snackfs.html).
+
+```scala
+
+ssc.checkpoint("snackfs://path/to/checkpoint/dir")
 
 ```
 

@@ -5,7 +5,7 @@ title: SnackFS Usage - Calliope
 
 # I can't wait to get my hands dirty! How do I start using SnackFS?
 
-All you need to start using SnackFS is a Cassandra cluster (or just one instance) and SnackFS distribution.
+All you need to start using SnackFS is a C\* cluster (or just one instance) and SnackFS distribution.
 
 ## How do I install SnackFS?
 
@@ -16,7 +16,7 @@ You can download the binary distribution of SnackFS for your version of Scala,
 * [Scala 2.9.x and Cassandra 2.0.x](http://bit.ly/1nbJiZ2)
 * [Scala 2.10.x and Cassandra 2.0.x](http://bit.ly/1f6BjGj)
 
-and extract it on a node running Cassandra. That's all there is! For your convenience you may set the SNACKFS_HOME environment variable to point to the extracted directory. Checkout the [Commands](#snfscmd) below to get started. Read up on [Configuration](#snfsconfig) if you need to change some settings like connecting to a remote Cassandra cluster.
+and extract it on a node running C\*. That's all there is! For your convenience you may set the SNACKFS_HOME environment variable to point to the extracted directory. Checkout the [Commands](#snfscmd) below to get started. Read up on [Configuration](#snfsconfig) if you need to change some settings like connecting to a remote C\* cluster.
 
 ## How do I add dependencies to my SBT/Maven Project?
 
@@ -125,35 +125,36 @@ snackfs -help mkdir
 
 SnackFS is configured using the core-site.xml present in the **conf** directorry in your SNACKFS_HOME. The format of this file is same as Hadoop's cconfiguration XML files, containing properties that have a name and value.
 
-## How do I use a remote cassandra cluster with SnackFS?
+## How do I use a remote C\* cluster with SnackFS?
 
-Edit **conf/core-site.xml** and change the **snackfs.cassandra.host** to point to a node in your remote cassandra cluster.
+Edit **conf/core-site.xml** and change the **snackfs.cassandra.host** to point to a node in your remote C\* cluster.
 
 ## What are the configuration properties in ```conf/core-site.xml```, what do they mean?
 
 * **snackfs.cassandra.host (default 127.0.0.1)**
-The IP Address of the Cassandra node to be used for communication.
+The IP Address of the C\* node to be used for communication.
 
 * **snackfs.cassandra.port (default 9160)**
-The port on which the Cassandra Thrift server is listening on the node.
-
-* **snackfs.consistencyLevel.write (default QUORUM)**
-The consistency level to be used while writing the data to SnackFS blocks in Cassandra.
-
-* **snackfs.consistencyLevel.read (default QUORUM)**
-The consistency level to be used while reading the data from SnackFS blocks in Cassandra.
+The port on which the C\* Thrift server is listening on the node.
 
 * **snackfs.keyspace (default snackfs)**
-The Cassandra keyspace to use for the storing the SnackFS metadata and Data blocks.
-
-* **snackfs.subblock.size (default 8 MB [8 * 1024 * 1024])**
-The maximum amount of data to be stored in one **snackfs subblock** i.e. one Cassandra cell in **sblock table**.  Checkout the [SnackFS Design](snackfs-design.html) for details.
-
-* **snackfs.block.size (default 128 MB [128 * 1024 * 1024])**
-The maximum amount of data to be stored in one **snackfs block** i.e. one Cassandra row in **sblock table**.  Checkout the [SnackFS Design](snackfs-design.html) for details.
+The name of the C\* keyspace to use for the storing the SnackFS metadata and Data blocks. This will be created is it doesn't already exist.
 
 * **snackfs.replicationFactor (default 3)**
-The replication factor for the data in SnackFS. This is used to set the replication factor for the SnackFS Keyspace in Cassandra. Changing it after creation of the keyspace won't have any affect.
+The replication factor for the data in SnackFS. This is used to set the replication factor for the SnackFS Keyspace in C\*. Changing it after creation of the keyspace won't have any affect.
 
 * **snackfs.replicationStrategy (default org.apache.cassandra.locator.SimpleStrategy)**
-The replication strategy for the data in SnackFS. This is used to set the replication strategy for the SnackFS Keyspace in Cassandra. Changing it after creation of the keyspace won't have any affect.
+The replication strategy for the data in SnackFS. This is used to set the replication strategy for the SnackFS Keyspace in C\*. Changing it after creation of the keyspace won't have any affect.
+
+* **snackfs.consistencyLevel.write (default QUORUM)**
+The consistency level to be used while writing the data to SnackFS blocks in C\*.
+
+* **snackfs.consistencyLevel.read (default QUORUM)**
+The consistency level to be used while reading the data from SnackFS blocks in C\*.
+
+* **snackfs.subblock.size (default 8 MB [8 * 1024 * 1024])**
+The maximum amount of data to be stored in one **snackfs subblock** i.e. one C\* cell in **sblock table**.  Checkout the [SnackFS Design](snackfs-design.html) for details.
+
+* **snackfs.block.size (default 128 MB [128 * 1024 * 1024])**
+The maximum amount of data to be stored in one **snackfs block** i.e. one C\* row in **sblock table**.  Checkout the [SnackFS Design](snackfs-design.html) for details.
+

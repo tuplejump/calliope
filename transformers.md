@@ -77,7 +77,7 @@ It's that simple
 
 So the power of deciding how and what to transform lies with you!
 
-In the coming releases we plan to automate the transformers for you, using Macros, but the transformers will always be available to help you use a cutom serializer/deserilizer.
+In the coming releases we plan to automate the transformers for you, using Macros, but the transformers will always be available to help you use a custom serializer/deserilizer.
 
 
 
