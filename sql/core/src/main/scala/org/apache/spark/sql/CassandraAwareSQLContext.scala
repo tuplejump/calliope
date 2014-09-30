@@ -20,10 +20,11 @@
 package org.apache.spark.sql
 
 import com.datastax.driver.core.{DataType => CassandraDataType, TableMetadata, KeyspaceMetadata}
-import com.tuplejump.calliope.sql.{CassandraAwareSQLContextFunctions, CassandraProperties}
+import com.tuplejump.calliope.sql.{StargateOptimizer, CassandraAwareSQLContextFunctions, CassandraProperties}
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.catalyst.analysis.{Catalog, SimpleCatalog}
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.optimizer.Optimizer
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan

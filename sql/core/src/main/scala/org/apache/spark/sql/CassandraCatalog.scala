@@ -2,18 +2,23 @@ package org.apache.spark.sql
 
 import com.datastax.driver.core.{KeyspaceMetadata, TableMetadata}
 import com.tuplejump.calliope.sql.{CassandraAwareSQLContextFunctions, CassandraProperties, CassandraSchemaHelper}
+import org.apache.spark.Logging
 import org.apache.spark.sql.catalyst.analysis.Catalog
 import org.apache.spark.sql.catalyst.plans.logical.{Subquery, LogicalPlan}
 
-protected[sql] trait CassandraCatalog extends Catalog {
+protected[sql] trait CassandraCatalog extends Catalog with Logging{
   protected def context: SQLContext with CassandraAwareSQLContextFunctions
 
-  abstract override def lookupRelation(databaseName: Option[String], tableName: String, alias: Option[String]): LogicalPlan = {
+  abstract override def lookupRelation(mayBeDbName: Option[String], tableRef: String, alias: Option[String]): LogicalPlan = {
+
+    logInfo(s"LOOKING UP DB [$mayBeDbName] for CF [$tableRef]")
+    val (databaseName, tableName) = getDbAndTable(mayBeDbName, tableRef)
+    logInfo(s"INTERPRETED AS DB [$databaseName] for CF [$tableName]")
+
     val cassandraProperties = CassandraProperties(context.sparkContext)
     import cassandraProperties._
     databaseName match {
       case Some(dbname) =>
-
         val metadata = CassandraSchemaHelper.getCassandraMetadata(cassandraHost, cassandraNativePort, cassandraUsername, cassandraPassword)
         if(metadata != null){
           metadata.getKeyspace(dbname) match {
@@ -53,6 +58,18 @@ protected[sql] trait CassandraCatalog extends Catalog {
       case None =>
         //We cannot fetch a table without the keyspace name in cassandra
         super.lookupRelation(databaseName, tableName, alias)
+    }
+  }
+
+  private val dbtblRegex = "(.*)\\.(.*)".r
+
+  def getDbAndTable(dbname: Option[String], tablename: String): (Option[String], String) = {
+    dbname match {
+      case db@Some(name) => (db, tablename)
+      case None => tablename match {
+        case dbtblRegex(db, tbl) => (Some(db), tbl)
+        case _ => (dbname, tablename)
+      }
     }
   }
 }

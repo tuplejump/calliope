@@ -106,7 +106,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeSql: Project = Project(
     id = "calliope-sql",
     base = file("sql/core"),
-    settings = Project.defaultSettings ++ Seq(
+    settings = commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq("org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided")
     )
@@ -115,7 +115,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeHive: Project = Project(
     id = "calliope-hive",
     base = file("sql/hive"),
-    settings = Project.defaultSettings ++ Seq(
+    settings = commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq(
         "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided",
@@ -132,10 +132,6 @@ object CalliopeBuild extends Build {
     settings = commonSettings ++ assemblySettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq(
-        /* "org.spark-project.hive" % "hive-service" % "0.12.0" exclude("org.jboss.netty", "netty")
-          exclude("commons-beanutils", "commons-beanutils-core")
-          exclude("commons-collections", "commons-collections")
-          exclude("commons-logging", "commons-logging-api"), */
         "org.spark-project.hive" % "hive-cli" % "0.12.0" exclude("org.jboss.netty", "netty")
           exclude("commons-beanutils", "commons-beanutils-core")
           exclude("commons-collections", "commons-collections")
@@ -168,5 +164,5 @@ object CalliopeBuild extends Build {
     )
   )
 
-  val root = Project("calliope-root", base = file(".")).aggregate(macros, calliope, calliopeSql, calliopeHive, calliopeServer, jdbcDriver)
+  val root = Project("calliope-root", base = file("."), settings = commonSettings).aggregate(macros, calliope, calliopeSql, calliopeHive, calliopeServer, jdbcDriver)
 }
