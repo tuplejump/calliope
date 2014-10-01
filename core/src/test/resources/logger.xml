@@ -1,0 +1,4 @@
+<configuration>
+    <logger name="org.apache.spark.sql" level="TRACE"/>
+    <logger name="com.tuplejump" level="ERROR"/>
+</configuration>
