@@ -5,3 +5,4 @@ project/project
 .idea_modules
 _sites
 lib_managed
+*~
