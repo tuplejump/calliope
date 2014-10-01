@@ -5,7 +5,7 @@ import sbtassembly.Plugin._
 
 object CalliopeBuild extends Build {
 
-  lazy val VERSION = "1.1.0-CTP-U2-SNAPSHOT"
+  lazy val VERSION = "1.1.0-CTP-U2"
 
   lazy val CAS_VERSION = "2.0.9"
 
@@ -18,6 +18,8 @@ object CalliopeBuild extends Build {
   lazy val PARADISE_VERSION = "2.0.0"
 
   lazy val SPARK_VERSION = "1.1.0"
+
+  lazy val HADOOP_VERSION = "1.0.4"
 
   lazy val pom = {
     <scm>
@@ -41,7 +43,7 @@ object CalliopeBuild extends Build {
     "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive(),
     "org.apache.spark" %% "spark-core" % SPARK_VERSION % "provided" exclude("org.apache.hadoop", "hadoop-core"),
     "org.apache.spark" %% "spark-streaming" % SPARK_VERSION % "provided",
-    "org.apache.hadoop" % "hadoop-client" % "1.0.4" % "provided",
+    "org.apache.hadoop" % "hadoop-client" % HADOOP_VERSION % "provided",
     "com.github.nscala-time" %% "nscala-time" % "1.0.0",
     "org.scalatest" %% "scalatest" % "1.9.1" % "test"
   )
