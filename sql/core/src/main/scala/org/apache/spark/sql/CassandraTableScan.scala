@@ -50,12 +50,17 @@ case class CassandraTableScan(
 
     logInfo(s"Generated CQL: $queryToUse")
 
+    relation.sqlContext.sparkContext.getConf.getAll.foreach{case x => println(x._1 + "  -->  " + x._2)}
+
+    val splitsPerNode =  relation.sqlContext.sparkContext.getConf.getInt("spark.calliope.split.per.node", 1)
+    logInfo(s"Creating splits per node: $splitsPerNode")
+
     val cas = CasBuilder.native
       .withColumnFamilyAndQuery(relation.keyspace, relation.table, queryToUse)
       .onHost(relation.host)
       .onPort(relation.rpcPort)
       .onNativePort(relation.nativePort)
-      .mergeRangesInMultiRangeSplit(256)
+      .mergeRangesInMultiRangeSplit(256 / splitsPerNode)
 
     sqlContext.sparkContext.nativeCassandra[Row](cas)
   }

@@ -53,8 +53,6 @@ private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
     val split = theSplit.asInstanceOf[CassandraPartition]
     logInfo("Input split: " + split.inputSplit)
 
-    conf.iterator().foreach(e => logInfo(s"${e.getKey}: ${e.getValue}"))
-
     logInfo("Using MultiRangeSplit: " + CqlConfigHelper.getMultiRangeInputSplit(conf))
 
     //Set configuration

@@ -1,19 +1,22 @@
 package com.tuplejump.calliope.sql
 
+import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 
 case class CassandraProperties(sparkContext: SparkContext) {
-  val cassandraHost: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraHostKey, "127.0.0.1")
+  val conf: SparkConf = sparkContext.getConf
 
-  val cassandraNativePort: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraNativePortKey, "9042")
+  val cassandraHost: String = conf.get(CalliopeSqlSettings.cassandraHostKey, "127.0.0.1")
 
-  val cassandraRpcPort: String = sparkContext.getConf.get(CalliopeSqlSettings.cassandraRpcPortKey, "9160")
+  val cassandraNativePort: String = conf.get(CalliopeSqlSettings.cassandraNativePortKey, "9042")
 
-  val loadCassandraTables = sparkContext.getConf.getBoolean(CalliopeSqlSettings.loadCassandraTablesKey, false)
+  val cassandraRpcPort: String = conf.get(CalliopeSqlSettings.cassandraRpcPortKey, "9160")
 
-  val cassandraUsername = sparkContext.getConf.getOption(CalliopeSqlSettings.cassandraUsernameKey)
+  val loadCassandraTables = conf.getBoolean(CalliopeSqlSettings.loadCassandraTablesKey, false)
 
-  val cassandraPassword = sparkContext.getConf.getOption(CalliopeSqlSettings.casssandraPasswordKey)
+  val cassandraUsername = conf.getOption(CalliopeSqlSettings.cassandraUsernameKey)
 
-  val mayUseStargate = sparkContext.getConf.getBoolean(CalliopeSqlSettings.enableStargateKey, false)
+  val cassandraPassword = conf.getOption(CalliopeSqlSettings.casssandraPasswordKey)
+
+  val mayUseStargate = conf.getBoolean(CalliopeSqlSettings.enableStargateKey, false)
 }

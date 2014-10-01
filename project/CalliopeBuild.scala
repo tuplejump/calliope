@@ -106,7 +106,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeSql: Project = Project(
     id = "calliope-sql",
     base = file("sql/core"),
-    settings = commonSettings ++ Seq(
+    settings = assemblySettings ++ commonSettings ++  Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq("org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided")
     )
@@ -115,7 +115,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeHive: Project = Project(
     id = "calliope-hive",
     base = file("sql/hive"),
-    settings = commonSettings ++ Seq(
+    settings = assemblySettings ++ commonSettings ++  Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq(
         "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided",
@@ -129,7 +129,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeServer: Project = Project(
     id = "calliope-server",
     base = file("sql/server"),
-    settings = commonSettings ++ assemblySettings ++ Seq(
+    settings = assemblySettings ++ commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq(
         "org.spark-project.hive" % "hive-cli" % "0.12.0" exclude("org.jboss.netty", "netty")
@@ -152,7 +152,7 @@ object CalliopeBuild extends Build {
   lazy val jdbcDriver: Project = Project(
     id="calliope-jdbc",
     base=file("sql/jdbc"),
-    settings = commonSettings ++ assemblySettings ++  Seq(
+    settings = assemblySettings ++  commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= Seq(
         "org.spark-project.hive" % "hive-jdbc" % "0.12.0" exclude("org.jboss.netty", "netty")

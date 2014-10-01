@@ -341,6 +341,8 @@ public class CqlRecordReader extends RecordReader<Long, Row>
         protected Iterator<Row> currentRangeRows;
         private TokenRangeHolder[] tokenRanges;
         private int currentRange;
+        private int currentRow = 0;
+        private Long startTime = System.nanoTime();
         private Map<String, ByteBuffer> previousRowKey = new HashMap<String, ByteBuffer>(); // previous CF row key
         AbstractType validatorType;
 
@@ -391,6 +393,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
             if (currentRangeRows == null) {
                 return null;
             } else {
+                currentRow++;
                 return currentRangeRows.next();
             }
         }
@@ -399,6 +402,8 @@ public class CqlRecordReader extends RecordReader<Long, Row>
             Row row = getNextRow();
 
             if (row == null) {
+                logger.info("Processed {} rows in {} token ranges from {} assigned ranges", currentRow, currentRange, tokenRanges.length);
+                logger.info("in {} nano seconds", System.nanoTime() - startTime);
                 logger.info("Done processing all ranges!");
                 return endOfData();
             }
