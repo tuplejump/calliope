@@ -1,3 +1,7 @@
+---
+layout: default
+title: Calliope Reporting Server - Calliope
+---
 #All I want to do is reports!
 
 Most of the reporting tools support either JDBC/ODBC protocol. Calliope extends the Spark's HiveThirftServer2 as CalliopeServer2 to provide support to connect to and work with the data in Casssandra.

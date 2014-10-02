@@ -1,3 +1,7 @@
+---
+layout: default
+title: SparkSQL - Calliope
+---
 #SQL is my Language of choice to work with data!
 
 **Community Technology Preview**

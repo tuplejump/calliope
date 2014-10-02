@@ -1,3 +1,7 @@
+---
+layout: default
+title: HiveQL Support - Calliope
+---
 #The swarm of bees!
 
 The Spark SQL parser is limited in terms of the queries you can write, and so SparkSQL provides a Hive Context, with HiveQL parser. Calliope also supports HiveContext to execute HiveQL on Cassandra. All the functionality provided by HiveContext (including the JDBC Server) is present in Calliope's HiveContext too.
@@ -27,9 +31,7 @@ Maven:
 
 SBT:
 ```scala
-
 libraryDependencies += "com.tuplejump" % "calliope-hive_2.10" % "1.1.0-CTP-U2"
-
 ```
 
 ##Creating the Hive Context

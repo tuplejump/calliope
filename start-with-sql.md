@@ -1,3 +1,7 @@
+---
+layout: default
+title: Start with SQL - Calliope
+---
 #Get, Set, Go!
 
 If you are just experimenting using the Spark Shell, add [this assembly](http://downloads.tuplejump.com/calliope-sql-assembly-1.1.0-CTP-U2.jar) jar to the shell and executor jars.

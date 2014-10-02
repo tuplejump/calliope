@@ -1,3 +1,7 @@
+---
+layout: default
+title: Previous Releases - Calliope
+---
 # I want to deploy in production today
 
 The CTP builds of Calliope provide the latest and greatest in terms of feeatures and functionality, but they are still not deployed and teested as throuroughly and widely as the stable releases. You can follow the instructions below to use the previous releases.

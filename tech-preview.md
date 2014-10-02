@@ -1,3 +1,7 @@
+---
+layout: default
+title: Community Technology Preview - Calliope
+---
 #A peek into the future!
 
 We started the Calliope project over a year back, when no straight forward solution was available for working with Cassandra Data in Spark. Over the last year, we have worked on stablizing the core and haave seen it being adopted and deployed at many organizations. We laid the foundation of and inspired the path of every other Spark-Cassandra connector out there, and we have see it as success of the Open Source model that there is now a thriving community around the Spark on C\* community.
