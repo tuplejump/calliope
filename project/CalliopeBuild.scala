@@ -92,7 +92,7 @@ object CalliopeBuild extends Build {
   )
 
   lazy val calliope = {
-    val calliopeSettings = commonSettings ++ Seq(
+    val calliopeSettings = assemblySettings ++ commonSettings ++ Seq(
       name := "calliope-core",
       libraryDependencies ++= dependencies
       //javaOptions in Test := Seq("-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"),
@@ -108,7 +108,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeSql: Project = Project(
     id = "calliope-sql",
     base = file("sql/core"),
-    settings = assemblySettings ++ commonSettings ++  Seq(
+    settings = assemblySettings ++ commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq("org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided")
     )
@@ -117,7 +117,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeHive: Project = Project(
     id = "calliope-hive",
     base = file("sql/hive"),
-    settings = assemblySettings ++ commonSettings ++  Seq(
+    settings = assemblySettings ++ commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq(
         "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided",
@@ -151,17 +151,31 @@ object CalliopeBuild extends Build {
     )
   ) dependsOn (calliopeHive)
 
+  val hiveExcludes = Seq(ExclusionRule(organization = "org.jboss.netty", artifact = "netty"),
+    ExclusionRule(organization = "io.netty", artifact = "netty"),
+    ExclusionRule(organization = "commons-beanutils", artifact = "commons-beanutils-core"),
+    ExclusionRule(organization = "commons-collections", artifact = "commons-collections"),
+    ExclusionRule(organization = "commons-logging", artifact = "commons-logging-api"),
+    ExclusionRule(organization = "org.datanucleus"))
+
   lazy val jdbcDriver: Project = Project(
-    id="calliope-jdbc",
-    base=file("sql/jdbc"),
-    settings = assemblySettings ++  commonSettings ++ Seq(
+    id = "calliope-jdbc",
+    base = file("sql/jdbc"),
+    settings = assemblySettings ++ commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= Seq(
-        "org.spark-project.hive" % "hive-jdbc" % "0.12.0" exclude("org.jboss.netty", "netty")
-          exclude("commons-beanutils", "commons-beanutils-core")
-          exclude("commons-collections", "commons-collections")
-          exclude("commons-logging", "commons-logging-api")
-          excludeAll (ExclusionRule(organization = "org.datanucleus"))
+        "org.spark-project.hive" % "hive-jdbc" % "0.12.0" intransitive(),
+        "org.spark-project.hive" % "hive-cli" % "0.12.0" intransitive(),
+        "org.spark-project.hive" % "hive-common" % "0.12.0" intransitive(),
+        "org.spark-project.hive" % "hive-service" % "0.12.0" intransitive(),
+        "org.spark-project.hive" % "hive-shims" % "0.12.0" intransitive(),
+        "commons-logging" % "commons-logging" % "1.1.3" intransitive(),
+        "org.apache.hadoop" % "hadoop-common" % "2.0.5-alpha" intransitive(),
+        "org.apache.httpcomponents" % "httpclient" % "4.2.5" intransitive(),
+        "org.apache.httpcomponents" % "httpcore" % "4.2.5" intransitive(),
+        "org.apache.httpcomponents" % "httpcore" % "4.2.5" intransitive(),
+        "org.apache.thrift" % "libthrift" % "0.9.1" intransitive(),
+        "org.slf4j" % "slf4j-api" % "1.7.7" intransitive()
       )
     )
   )
