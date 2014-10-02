@@ -35,7 +35,7 @@ libraryDependencies += "com.tuplejump" %% "calliope-sql" % "1.1.0-CTP-U2"
 
 ##Create the Calliope SQL Context
 
-Currently, due certain limitations in SparkSQL implementation we cannot provide the Cassandra support directly on SQLContext, so we provide a custom SQLContext (CassandraAwareSQLContext) extending SparkSQL's SQLContext. Creating a CassandraAwareSQLContext is, no surprise, same as creating a SQLContext.
+Currently, due to certain limitations in SparkSQL implementation we cannot provide the Cassandra support directly on SQLContext, so we provide a custom SQLContext (CassandraAwareSQLContext) extending SparkSQL's SQLContext. Creating a CassandraAwareSQLContext is, no surprise, same as creating a SQLContext.
 
 ```scala
 
@@ -58,7 +58,7 @@ sqlContext.sql("SELECT * FROM org.employees")
 
 ```
 
-And you can run any SQL query on this that Spark SQL can handle. The good part is as Calliope understands what queries C\* can and cannot handle it will rwrite the queries aand combine SparkSQL computation along to give the best shot at getting fast results. It will autmatically handle the utilization of Clustering Keys and Indexes in the queries, thus reducing the amount of data needed to be transferred from C\* to Spark.
+And you can run any SQL query on this that Spark SQL can handle. The good part is as Calliope understands what queries C\* can and cannot handle it will rwrite the queries and combine SparkSQL computation along to give the best shot at getting fast results. It will automatically handle the utilization of Clustering Keys and Indexes in the queries, thus reducing the amount of data needed to be transferred from C\* to Spark.
 
 ##Configuring CalliopeSQL
 
@@ -72,7 +72,7 @@ By default Calliope assumes that the driver application is running on the same n
 
 ##Programatically loading Cassandra Tables
 
-Sometimes you may need to connect to different Casssandra clusters or need access tto the underlying SchemaRDD. For this purpose, Calliope's SQL Context provides the cassandraTable method with some alternate signatures, including one where you can provide host, port, keyspace, table, username and password.
+Sometimes you may need to connect to different Cassandra clusters or need access to the underlying SchemaRDD. For this purpose, Calliope's SQL Context provides the *cassandraTable* method with some alternate signatures, including one where you can provide host, port, keyspace, table, username and password.
 
 ```scala
 

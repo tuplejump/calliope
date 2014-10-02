@@ -49,7 +49,7 @@ import sqlContext.createSchemaRDD
 
 Now you have a HiveContext that you can use same as documented in the [Spark SQL Programming Guide](https://spark.apache.org/docs/latest/sql-programming-guide.html)
 
-Additionaly, this HiveContext also knows about the configured \([see sql config](start-with-sql.md)\) Cassandra cluster and is all set to run your Hive Queries against it.
+Additionally, this HiveContext also knows about the configured \([see sql config](start-with-sql.md)\) Cassandra cluster and is all set to run your Hive Queries against it.
 
-This, also provides the same programming API as Calliope's SQL Context, so you can create a SchemaRDD programatically.
+This, also provides the same programming API as Calliope's SQL Context, so you can create a SchemaRDD programmatically.
 
