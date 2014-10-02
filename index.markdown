@@ -5,6 +5,7 @@ title: "Calliope, by tuplejump"
 
 ## Project Updates 
 
+* Calliope Community Technology Preview (Update 2) is public, brings SparkSQL for Cassandra
 * SnackFS going to GA soon. The source code is available at [snackfs-release](https://github.com/tuplejump/snackfs-release)
 * Calliope [update release](getting-started.html) with minor bug fixes 
 * Early Access release to [SnackFS 0.6.2](snackfs.html), our bitte sized Cassandra (1.2.x) backed DFS (Cross compiled with Scala 2.9.x and 2.10.x) iis available for download.
