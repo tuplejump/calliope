@@ -1,14 +1,33 @@
 #Get, Set, Go!
 
-To use CalliopeSQL in your project you need to add the calliope-sql package to the project dependencies. 
-
-If you are experimenting using the Spark Shell, add this (coming soon) assembly jar to the shell jars.
+If you are just experimenting using the Spark Shell, add [this assembly](http://downloads.tuplejump.com/calliope-sql-assembly-1.1.0-CTP-U2.jar) jar to the shell and executor jars.
 
 ```sh
 
-$ bin/spark-shell --jars calliope-sql-1.1.0-CTP-U2.jar
+$ bin/spark-shell --jars calliope-sql-assembly-1.1.0-CTP-U2.jar
 
 ```
+
+To use CalliopeSQL in your project you need to add the calliope-sql package to the project dependencies. 
+
+Maven: 
+```xml
+
+<dependency>
+    <groupId>com.tuplejump</groupId>
+    <artifactId>calliope-sql_2.10</artifactId>
+    <version>1.1.0-CTP-U2</version>
+</dependency>
+
+```
+
+SBT:
+```scala
+
+libraryDependencies += "com.tuplejump" %% "calliope-sql" % "1.1.0-CTP-U2"
+
+```
+
 
 ##Create the Calliope SQL Context
 

@@ -4,7 +4,33 @@ The Spark SQL parser is limited in terms of the queries you can write, and so Sp
 
 ##The package
 
+To use HiveQl with Cassandra from the Spark Shell, add [this assembly](http://downloads.tuplejump.com/calliope-hive-assembly-1.1.0-CTP-U2.jar) jar to spark-shell's and executor's classpath.
+
+```sh
+
+$ bin/spark-shell --jars calliope-sql-assembly-1.1.0-CTP-U2.jar
+
+```
+
 Just like Calliope SQL, you need to add calliope-hive to your project's dependencies.
+
+Maven:
+
+```xml
+<dependency>
+    <groupId>com.tuplejump</groupId>
+    <artifactId>calliope-hive_2.10</artifactId>
+    <version>1.1.0-CTP-U2</version>
+</dependency>
+
+```
+
+SBT:
+```scala
+
+libraryDependencies += "com.tuplejump" % "calliope-hive_2.10" % "1.1.0-CTP-U2"
+
+```
 
 ##Creating the Hive Context
 
