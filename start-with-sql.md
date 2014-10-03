@@ -14,7 +14,8 @@ $ bin/spark-shell --jars calliope-sql-assembly-1.1.0-CTP-U2.jar
 
 To use CalliopeSQL in your project you need to add the calliope-sql package to the project dependencies. 
 
-Maven: 
+Maven:
+
 ```xml
 
 <dependency>
@@ -26,6 +27,7 @@ Maven:
 ```
 
 SBT:
+
 ```scala
 
 libraryDependencies += "com.tuplejump" %% "calliope-sql" % "1.1.0-CTP-U2"

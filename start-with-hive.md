@@ -30,8 +30,11 @@ Maven:
 ```
 
 SBT:
+
 ```scala
+
 libraryDependencies += "com.tuplejump" % "calliope-hive_2.10" % "1.1.0-CTP-U2"
+
 ```
 
 ##Creating the Hive Context
