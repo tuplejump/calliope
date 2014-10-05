@@ -5,7 +5,12 @@ import sbtassembly.Plugin._
 
 object CalliopeBuild extends Build {
 
-  lazy val VERSION = "1.1.0-CTP-U2"
+  lazy val USE_HADOOP2 = {
+    val envH = System.getenv("USE_HADOOP2")
+    envH != null && envH == "true"
+  }
+
+  lazy val VERSION = "1.1.0-CTP-U2" + (if(USE_HADOOP2) "-H2" else "")
 
   lazy val CAS_VERSION = "2.0.9"
 
@@ -19,7 +24,7 @@ object CalliopeBuild extends Build {
 
   lazy val SPARK_VERSION = "1.1.0"
 
-  lazy val HADOOP_VERSION = "1.0.4"
+  lazy val HADOOP_VERSION = if(USE_HADOOP2) "2.4.0" else "1.0.4"
 
   lazy val pom = {
     <scm>
@@ -52,7 +57,7 @@ object CalliopeBuild extends Build {
     organization := "com.tuplejump",
     version := VERSION,
     scalaVersion := SCALA_VERSION,
-    scalacOptions := "-deprecation" :: "-unchecked" :: "-feature" :: Nil,
+    scalacOptions := "-deprecation" :: "-unchecked" :: "-feature" :: "-language:implicitConversions" :: Nil,
     parallelExecution in Test := false,
     pomExtra := pom,
     publishArtifact in Test := false,
