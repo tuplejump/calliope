@@ -44,7 +44,7 @@ class ThriftCassandraRDDSpec extends FunSpec with BeforeAndAfterAll with ShouldM
 
   info("Describes the functionality provided by the Cassandra RDD")
 
-  val sc = new SparkContext("local", "castest")
+  val sc = new SparkContext("local[4]", "castest")
 
   describe("Thrift Cassandra RDD") {
 

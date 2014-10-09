@@ -22,6 +22,7 @@ package org.apache.spark.sql
 import com.datastax.driver.core.{Row => CassandraRow}
 import com.tuplejump.calliope.CasBuilder
 import com.tuplejump.calliope.Implicits._
+import com.tuplejump.calliope.sql.{CalliopeSqlSettings, CassandraProperties}
 import com.tuplejump.calliope.stargate.JsonMapping.{BooleanCondition, Condition, MatchCondition, RangeCondition}
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
@@ -43,26 +44,33 @@ case class CassandraTableScan(
         new GenericRow(CassandraSparkDataConvertor.build(row, output))
     }
 
+    //TODO: Remove
+    val qgenStartTime = System.nanoTime()
+
     val queryToUse: String = relation.stargateIndex match {
       case Some(idxColumn) => buildStargateQuery(idxColumn)
       case None => buildCassandraQuery
     }
 
+    logInfo(s"TIME TAKEN TO GENERATE QUERY: ${System.nanoTime() - qgenStartTime} nanos")
     logInfo(s"Generated CQL: $queryToUse")
 
-    relation.sqlContext.sparkContext.getConf.getAll.foreach{case x => println(x._1 + "  -->  " + x._2)}
-
-    val splitsPerNode =  relation.sqlContext.sparkContext.getConf.getInt("spark.calliope.split.per.node", 1)
-    logInfo(s"Creating splits per node: $splitsPerNode")
+    val rangesPerSplit =  relation.sqlContext.sparkContext.getConf.getInt(CalliopeSqlSettings.rangesPerSplit, 1)
+    logInfo(s"Creating ranges per task: $rangesPerSplit")
 
     val cas = CasBuilder.native
       .withColumnFamilyAndQuery(relation.keyspace, relation.table, queryToUse)
       .onHost(relation.host)
       .onPort(relation.rpcPort)
       .onNativePort(relation.nativePort)
-      .mergeRangesInMultiRangeSplit(256 / splitsPerNode)
+      .mergeRangesInMultiRangeSplit(rangesPerSplit)
 
-    sqlContext.sparkContext.nativeCassandra[Row](cas)
+    val rddGenStartTime = System.nanoTime()
+
+    val rdd = sqlContext.sparkContext.nativeCassandra[Row](cas)
+
+    logInfo(s"TIME TAKEN TO SETUP RDD: ${System.nanoTime() - rddGenStartTime} nanos")
+    rdd
   }
 
   private def buildStargateQuery(idxColumn: String): String = {

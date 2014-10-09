@@ -41,7 +41,7 @@ class CassandraRDDFunctionsSpec extends FunSpec with BeforeAndAfterAll with Shou
   val CQL_TEST_KEYSPACE = "cql3_test"
   val CQL_TEST_OUTPUT_COLUMN_FAMILY = "emp_write_test"
 
-  val sc = new SparkContext("local", "castest")
+  val sc = new SparkContext("local[1]", "castest")
 
   describe("Cassandra RDD Function") {
     it("should allow persistence of any RDD to cassandra") {

@@ -34,4 +34,6 @@ object CalliopeSqlSettings {
   final val casssandraPasswordKey = "spark.cassandra.auth.password"
 
   final val loadCassandraTablesKey = "spark.cassandra.auto.load.tables"
+
+  final val rangesPerSplit = "spark.calliope.ranges.per.split"
 }

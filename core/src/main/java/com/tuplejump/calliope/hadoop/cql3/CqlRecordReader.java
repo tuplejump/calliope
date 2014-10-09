@@ -57,6 +57,7 @@ import java.util.*;
  */
 public class CqlRecordReader extends RecordReader<Long, Row>
         implements org.apache.hadoop.mapred.RecordReader<Long, Row> {
+
     private static final Logger logger = LoggerFactory.getLogger(CqlRecordReader.class);
     private InputSplit split;
     private RowIterator rowIterator;
@@ -267,6 +268,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
 
 
     private abstract class RowIterator extends AbstractIterator<Pair<Long, Row>> {
+
         protected int totalRead = 0; // total number of cf rows read
     }
 
@@ -278,6 +280,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
      * token(partition_key1 ... partition_keyn) <= ?
      */
     private class SingleRangeRowIterator extends RowIterator {
+
         private long keyId = 0L;
         protected Iterator<Row> rows;
         private Map<String, ByteBuffer> previousRowKey = new HashMap<String, ByteBuffer>(); // previous CF row key
@@ -337,6 +340,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
      * token(partition_key1 ... partition_keyn) <= ?
      */
     private class MultiRangeRowIterator extends RowIterator {
+
         private long keyId = 0L;
         protected Iterator<Row> currentRangeRows;
         private TokenRangeHolder[] tokenRanges;
@@ -383,10 +387,14 @@ public class CqlRecordReader extends RecordReader<Long, Row>
             return rs.iterator();
         }
 
+        private long rowFetchTime = 0L;
+
         private Row getNextRow() {
             if ((currentRangeRows == null || !currentRangeRows.hasNext()) && tokenRanges.length > currentRange) {
                 do {
+                    Long casRowReadSTime = System.nanoTime();
                     currentRangeRows = getNextRange();
+                    rowFetchTime += (System.nanoTime() - casRowReadSTime);
                 } while (!currentRangeRows.hasNext() && tokenRanges.length > currentRange);
             }
 
@@ -404,6 +412,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
             if (row == null) {
                 logger.info("Processed {} rows in {} token ranges from {} assigned ranges", currentRow, currentRange, tokenRanges.length);
                 logger.info("in {} nano seconds", System.nanoTime() - startTime);
+                logger.info("CASSANDRA ROW FETCH TIME:" +  rowFetchTime / 1000000 + " milliseconds");
                 logger.info("Done processing all ranges!");
                 return endOfData();
             }
@@ -436,6 +445,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
 
 
     private static class WrappedRow implements Row {
+
         private Row row;
 
         public void setRow(Row row) {

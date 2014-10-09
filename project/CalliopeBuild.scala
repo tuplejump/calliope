@@ -79,7 +79,8 @@ object CalliopeBuild extends Build {
     organizationHomepage := Some(url("http://www.tuplejump.com")),
     resolvers ++= Seq("Akka Repository" at "http://repo.akka.io/releases/"),
     fork in Test := true,
-    test in assembly := {}
+    test in assembly := {},
+    retrieveManaged := true
   ) ++ net.virtualvoid.sbt.graph.Plugin.graphSettings
 
   lazy val macros: Project = Project(

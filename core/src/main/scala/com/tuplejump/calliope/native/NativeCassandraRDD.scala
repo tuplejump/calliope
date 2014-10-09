@@ -69,6 +69,10 @@ private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
     var havePair = false
     var finished = false
 
+    var timeToReadRows = 0L
+    var timeToUnmarshall = 0L
+    var rowsRead = 0L
+
     override def hasNext: Boolean = {
       if (!finished && !havePair) {
         finished = !reader.nextKeyValue
@@ -78,6 +82,7 @@ private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
     }
 
     override def next: T = {
+      val rowReadStartTime =  System.nanoTime()
       if (!hasNext) {
         throw new java.util.NoSuchElementException("End of stream")
       }
@@ -89,10 +94,22 @@ private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
           cd.getType
       }
 
-      unmarshaller(reader.getCurrentValue)
+      val rowReadEndTime =  System.nanoTime()
+
+      val obj = unmarshaller(reader.getCurrentValue)
+
+      val rowUnmarshellTime = System.nanoTime()
+      timeToReadRows += (rowReadEndTime - rowReadStartTime)
+
+      timeToUnmarshall += (rowUnmarshellTime - rowReadEndTime)
+
+      rowsRead += 1
+
+      obj
     }
 
     private def close() {
+      logInfo(s"READ: $rowsRead | TIME TO READ: ${timeToReadRows/1000} micros | TIME TO UNMARSHALL: ${timeToUnmarshall/1000} micros")
       try {
         reader.close()
       } catch {
