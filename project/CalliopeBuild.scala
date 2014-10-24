@@ -10,7 +10,7 @@ object CalliopeBuild extends Build {
     envH != null && envH == "true"
   }
 
-  lazy val VERSION = "1.1.0-CTP-U2" + (if(USE_HADOOP2) "-H2" else "")
+  lazy val VERSION = "1.1.0-CTP-U3" + (if(USE_HADOOP2) "-H2" else "") + "-SNAPSHOT"
 
   lazy val CAS_VERSION = "2.0.9"
 
