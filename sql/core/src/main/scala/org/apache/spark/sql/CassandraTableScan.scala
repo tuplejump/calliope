@@ -52,11 +52,13 @@ case class CassandraTableScan(
       case None => buildCassandraQuery
     }
 
-    logInfo(s"TIME TAKEN TO GENERATE QUERY: ${System.nanoTime() - qgenStartTime} nanos")
-    logInfo(s"Generated CQL: $queryToUse")
+    if(log.isDebugEnabled) {
+      logDebug(s"TIME TAKEN TO GENERATE QUERY: ${System.nanoTime() - qgenStartTime} nanos")
+      logDebug(s"Generated CQL: $queryToUse")
+    }
 
     val rangesPerSplit =  relation.sqlContext.sparkContext.getConf.getInt(CalliopeSqlSettings.rangesPerSplit, 1)
-    logInfo(s"Creating ranges per task: $rangesPerSplit")
+    logInfo(s"Will process ranges per task: $rangesPerSplit")
 
     val cas = CasBuilder.native
       .withColumnFamilyAndQuery(relation.keyspace, relation.table, queryToUse)
@@ -69,7 +71,10 @@ case class CassandraTableScan(
 
     val rdd = sqlContext.sparkContext.nativeCassandra[Row](cas)
 
-    logInfo(s"TIME TAKEN TO SETUP RDD: ${System.nanoTime() - rddGenStartTime} nanos")
+    if (log.isDebugEnabled) {
+      logDebug(s"TIME TAKEN TO SETUP RDD: ${System.nanoTime() - rddGenStartTime} nanos")
+    }
+
     rdd
   }
 

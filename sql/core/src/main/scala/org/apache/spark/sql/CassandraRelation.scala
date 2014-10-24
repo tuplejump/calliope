@@ -55,6 +55,28 @@ case class CassandraRelation(host: String, nativePort: String,
 
   private val indexes: List[String] = cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getName).toList
 
+  private val isStargatePermitted = mayUseStartgate || (conf match {
+    case Some(c) =>
+      c.getBoolean(CalliopeSqlSettings.enableStargateKey, false) || c.getBoolean(s"calliope.stargate.$keyspace.$table.enable", false)
+    case None => false
+  })
+  private[sql] val stargateIndex: Option[String] = if (isStargatePermitted) {
+    cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getIndex).collectFirst {
+      case idx if (idx.isCustomIndex && idx.getIndexClassName == "com.tuplejump.stargate.RowIndex") =>
+        idx.getIndexedColumn.getName
+    }
+  } else {
+    None
+  }
+
+  def pushdownPredicates(filters: Seq[Expression]): PushdownFilters = {
+    println(s"FILTERS: $filters")
+    stargateIndex match {
+      case Some(idxColumn) => StargatePushdownHandler.getPushdownFilters(filters)
+      case None => CassandraPushdownHandler.getPushdownFilters(filters, partitionKeys, clusteringKeys, indexes)
+    }
+  }
+
   override def newInstance() =
     new CassandraRelation(host,
       nativePort,
@@ -67,29 +89,7 @@ case class CassandraRelation(host: String, nativePort: String,
       mayUseStartgate,
       conf).asInstanceOf[this.type]
 
-  override val output: Seq[Attribute] = CassandraTypeConverter.convertToAttributes(cassandraSchema)
-
-  private val isStargatePermitted = mayUseStartgate || (conf match {
-    case Some(c) =>
-      c.get(CalliopeSqlSettings.enableStargateKey) == "true" || c.get(s"calliope.stargate.$keyspace.$table.enable") == "true"
-    case None => false
-  })
-
-  private[sql] val stargateIndex: Option[String] = if (isStargatePermitted) {
-    cassandraSchema.getColumns.filter(_.getIndex != null).map(_.getIndex).collectFirst {
-      case idx if (idx.isCustomIndex && idx.getIndexClassName == "com.tuplejump.stargate.RowIndex") =>
-        idx.getIndexedColumn.getName
-    }
-  } else {
-    None
-  }
-
-  def pushdownPredicates(filters: Seq[Expression]): PushdownFilters = {
-    stargateIndex match {
-      case Some(idxColumn) => StargatePushdownHandler.getPushdownFilters(filters)
-      case None => CassandraPushdownHandler.getPushdownFilters(filters, partitionKeys, clusteringKeys, indexes)
-    }
-  }
+  override val output: Seq[Attribute] = CassandraTypeConverter.convertToAttributes(cassandraSchema, isStargatePermitted)
 
   //TODO: Find better way of getting estimated result sizes from Cassandra
   override lazy val statistics: Statistics =

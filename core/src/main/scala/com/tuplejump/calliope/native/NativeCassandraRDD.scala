@@ -89,10 +89,6 @@ private[calliope] class NativeCassandraRDD[T: ClassTag](sc: SparkContext,
       havePair = false
 
       val row = reader.getCurrentValue
-      row.getColumnDefinitions.asList().map {
-        cd =>
-          cd.getType
-      }
 
       val rowReadEndTime =  System.nanoTime()
 

@@ -22,7 +22,7 @@ package org.apache.spark.sql
 import com.datastax.driver.core.{DataType => CassandraDataType, TableMetadata, KeyspaceMetadata}
 import com.tuplejump.calliope.sql.{StargateOptimizer, CassandraAwareSQLContextFunctions, CassandraProperties}
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.catalyst.analysis.{Catalog, SimpleCatalog}
+import org.apache.spark.sql.catalyst.analysis.{OverrideCatalog, Catalog, SimpleCatalog}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.Optimizer
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
@@ -35,7 +35,7 @@ import scala.collection.JavaConversions._
 class CassandraAwareSQLContext(sc: SparkContext) extends SQLContext(sc) with CassandraAwareSQLContextFunctions {
   self =>
 
-  override protected[sql] lazy val catalog: Catalog = new SimpleCatalog(true) with CassandraCatalog {
+  override protected[sql] lazy val catalog: Catalog = new SimpleCatalog(true) with SQLCassandraCatalog {
     override protected val context: SQLContext with CassandraAwareSQLContextFunctions = self
   }
 
@@ -53,4 +53,14 @@ class CassandraAwareSQLContext(sc: SparkContext) extends SQLContext(sc) with Cas
         CartesianProduct ::
         BroadcastNestedLoopJoin :: Nil
   }
+
+  trait SQLCassandraCatalog extends CassandraCatalog with OverrideCatalog {
+    override def registerTable(databaseName: Option[String], tableName: String, plan: LogicalPlan): Unit = {
+      logInfo(s"REGISTERING TABLE WITH DB [$databaseName] AND TABLE [$tableName]")
+      val (db, tbl) = getDbAndTable(databaseName, tableName)
+      logInfo(s"INTERPRETED AS DB [$db] AND TABLE [$tbl]")
+      super.registerTable(db, tbl, plan)
+    }
+  }
+
 }

@@ -21,7 +21,7 @@ package com.tuplejump.calliope.sql
 
 
 object CalliopeSqlSettings {
-  final val enableStargateKey: String = "calliope.stargate.enable"
+  final val enableStargateKey: String = "spark.calliope.stargate.enable"
 
   final val cassandraHostKey = "spark.cassandra.connection.host"
 

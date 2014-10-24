@@ -50,7 +50,8 @@ object CalliopeBuild extends Build {
     "org.apache.spark" %% "spark-streaming" % SPARK_VERSION % "provided",
     "org.apache.hadoop" % "hadoop-client" % HADOOP_VERSION % "provided",
     "com.github.nscala-time" %% "nscala-time" % "1.0.0",
-    "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+    "org.scalatest" %% "scalatest" % "1.9.1" % "test",
+    "org.json4s" %% "json4s-jackson" % "3.2.10" % "provided"
   )
 
   val commonSettings = Project.defaultSettings ++ Seq(

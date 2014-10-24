@@ -596,7 +596,7 @@ class NativeCasBuilder(keyspace: String,
     keyspace, columnFamily, inputCql, host, port, nativePort, partitioner, username, password, pageSize, preparedSaveQuery, writeConsistencyLevel, inputSplitSize, outputCompressionClass, Some(chunkLength), customConfig, useMultiRangeSplits, rangesPerMultiRangeSplit)
 
   /**
-   * Set the number of keys to in split range that is processed per task
+   * Set the number of keys in split range that is processed per task
    * @param splitSize
    */
   def inputSplitSize(splitSize: Int) = new NativeCasBuilder(

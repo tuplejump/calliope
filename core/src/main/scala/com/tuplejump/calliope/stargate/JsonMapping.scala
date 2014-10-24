@@ -22,13 +22,9 @@ package com.tuplejump.calliope.stargate
 import org.codehaus.jackson.annotate.{JsonCreator, JsonProperty}
 import org.codehaus.jackson.map.ObjectMapper
 
-import scala.util.parsing.json.{JSONArray, JSONObject}
+import scala.util.parsing.json.{JSON, JSONArray, JSONObject}
 
 object JsonMapping {
-
-  val mapper = new ObjectMapper()
-
-  //mapper.registerModule(DefaultScalaModule)
 
   trait Condition {
     def toJson: JSONObject
@@ -171,26 +167,12 @@ object JsonMapping {
                     @JsonProperty("filter") filterCondition: Condition,
                     @JsonProperty("sort") sort: Sort)
 
-  val defaultMapping: String = mapper.writeValueAsString(Properties(fields = Map("source" -> Properties(`type` = "object"))))
-
-  @JsonCreator
-  case class Properties(@JsonProperty metaColumn: Boolean = true,
-                        @JsonProperty numShards: Int = 1024,
-                        @JsonProperty routing: Boolean = false,
-                        @JsonProperty vnodes: Boolean = false,
-                        @JsonProperty `type`: String = null,
-                        @JsonProperty analyzer: String = null,
-                        @JsonProperty indexed: Boolean = true,
-                        @JsonProperty stored: Boolean = false,
-                        @JsonProperty tokenized: Boolean = true,
-                        @JsonProperty omitNorms: Boolean = true,
-                        @JsonProperty maxFieldLength: Int = 0,
-                        @JsonProperty storeTermVectors: Boolean = false,
-                        @JsonProperty storeTermVectorOffsets: Boolean = false,
-                        @JsonProperty storeTermVectorPositions: Boolean = false,
-                        @JsonProperty storeTermVectorPayloads: Boolean = false,
-                        @JsonProperty indexOptions: String = "DOCS_ONLY",
-                        @JsonProperty numericPrecisionStep: Int = 4,
-                        @JsonProperty fields: Map[String, Properties] = Map())
-
+  /* def parseStargateQuery(query: String) = {
+    val parsedQuery = JSON.parseFull(query)
+    val (filter, function) = parsedQuery map {
+      case Some(j) =>
+        println(j)
+        (JSONObject())
+    }
+  } */
 }

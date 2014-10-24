@@ -114,7 +114,7 @@ public class SplitsManager {
         }
 
         assert splits.size() > 0;
-        Collections.shuffle(splits, new Random(System.nanoTime()));
+        //Collections.shuffle(splits, new Random(System.nanoTime()));
         return splits;
     }
 
@@ -150,7 +150,7 @@ public class SplitsManager {
         }
 
         assert splits.size() > 0;
-        Collections.shuffle(splits, new Random(System.nanoTime()));
+        //Collections.shuffle(splits, new Random(System.nanoTime()));
         return splits;
     }
 

@@ -392,9 +392,9 @@ public class CqlRecordReader extends RecordReader<Long, Row>
         private Row getNextRow() {
             if ((currentRangeRows == null || !currentRangeRows.hasNext()) && tokenRanges.length > currentRange) {
                 do {
-                    Long casRowReadSTime = System.nanoTime();
+                    //Long casRowReadSTime = System.nanoTime();
                     currentRangeRows = getNextRange();
-                    rowFetchTime += (System.nanoTime() - casRowReadSTime);
+                    //rowFetchTime += (System.nanoTime() - casRowReadSTime);
                 } while (!currentRangeRows.hasNext() && tokenRanges.length > currentRange);
             }
 
@@ -412,7 +412,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
             if (row == null) {
                 logger.info("Processed {} rows in {} token ranges from {} assigned ranges", currentRow, currentRange, tokenRanges.length);
                 logger.info("in {} nano seconds", System.nanoTime() - startTime);
-                logger.info("CASSANDRA ROW FETCH TIME:" +  rowFetchTime / 1000000 + " milliseconds");
+                //logger.info("CASSANDRA ROW FETCH TIME:" +  rowFetchTime / 1000000 + " milliseconds");
                 logger.info("Done processing all ranges!");
                 return endOfData();
             }

@@ -25,11 +25,34 @@ import org.apache.spark.sql.catalyst.types.{DataType => CatalystDataType, _}
 
 import scala.collection.JavaConversions._
 
+private[sql] object CustomDataTypes {
+  val stargateStruct = {
+
+    val fields: Seq[StructField] = Seq(
+      StructField("error", StringType, true),
+      StructField("count", LongType, true),
+      StructField("query", StringType, true),
+      StructField("groupedCount", MapType(StringType, LongType), true)
+    )
+
+    StructType.apply(fields)
+  }
+}
 
 private[sql] object CassandraTypeConverter {
 
-  def convertToAttributes(table: TableMetadata): Seq[Attribute] = {
-    table.getColumns.map(column => new AttributeReference(column.getName, toCatalystType(column.getType), false)())
+  def convertToAttributes(table: TableMetadata, isStargatePermitted: Boolean): Seq[Attribute] = {
+    println("STARGATE ENABLED:" + isStargatePermitted)
+    table.getColumns.map{
+        column =>
+          if(isStargatePermitted && column.getIndex != null && column.getIndex.isCustomIndex && column.getIndex.getIndexClassName == "com.tuplejump.stargate.RowIndex"){
+            println("USING STARGATE STRUCTURE")
+            new AttributeReference(column.getName, CustomDataTypes.stargateStruct, true)()
+          }else {
+            //TODO:: Fix nullability
+            new AttributeReference(column.getName, toCatalystType(column.getType), false)()
+          }
+    }
   }
 
 
