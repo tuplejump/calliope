@@ -188,4 +188,5 @@ object CalliopeBuild extends Build {
   )
 
   val root = Project("calliope-root", base = file("."), settings = commonSettings).aggregate(macros, calliope, calliopeSql, calliopeHive, calliopeServer, jdbcDriver)
+
 }

@@ -10,6 +10,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.thrift.TApplicationException;
+import org.apache.thrift.TBase;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,8 +163,11 @@ public class SplitsManager {
         try {
             map = client.describe_local_ring(ConfigHelper.getInputKeyspace(conf));
         } catch (InvalidRequestException e) {
+            logger.error("Error fetching ring information from host: " + ConfigHelper.getInputInitialAddress(conf) + "and port: " + ConfigHelper.getInputRpcPort(conf));
+            logger.error("Cassandra Client location: " + Cassandra.Client.class.getProtectionDomain().getCodeSource().getLocation());
+            logger.error("Thrift Client location: " + TBase.class.getProtectionDomain().getCodeSource().getLocation());
             throw new RuntimeException(e);
-        } catch (TException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
         return map;
