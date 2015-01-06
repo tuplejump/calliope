@@ -16,7 +16,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 /**
@@ -162,13 +165,16 @@ public class SplitsManager {
         List<TokenRange> map;
         try {
             map = client.describe_local_ring(ConfigHelper.getInputKeyspace(conf));
-        } catch (InvalidRequestException e) {
-            logger.error("Error fetching ring information from host: " + ConfigHelper.getInputInitialAddress(conf) + "and port: " + ConfigHelper.getInputRpcPort(conf));
-            logger.error("Cassandra Client location: " + Cassandra.Client.class.getProtectionDomain().getCodeSource().getLocation());
-            logger.error("Thrift Client location: " + TBase.class.getProtectionDomain().getCodeSource().getLocation());
-            throw new RuntimeException(e);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            logger.warn("Error in describe_local_ring, will try describe_ring");
+            try {
+                map = client.describe_ring(ConfigHelper.getInputKeyspace(conf));
+            } catch (Exception ex) {
+                logger.error("Error fetching ring information from host: " + ConfigHelper.getInputInitialAddress(conf) + "and port: " + ConfigHelper.getInputRpcPort(conf));
+                logger.error("Cassandra Client location: " + Cassandra.Client.class.getProtectionDomain().getCodeSource().getLocation());
+                logger.error("Thrift Client location: " + TBase.class.getProtectionDomain().getCodeSource().getLocation());
+                throw new RuntimeException(e);
+            }
         }
         return map;
     }
