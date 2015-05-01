@@ -1,5 +1,0 @@
-
-export CALDIR=~/work/tuplejump/calliope
-
-bin/spark-shell  --master spark://127.0.0.1:7077 --jars $CALDIR/target/scala-2.10/calliope_2.10-1.1.0-CTP-U1-SNAPSHOT.jar,$CALDIR/lib_managed/jars/org.apache.cassandra/cassandra-all/cassandra-all-2.0.9.jar,$CALDIR/lib_managed/jars/org.apache.cassandra/cassandra-thrift/cassandra-thrift-2.0.9.jar,$CALDIR/lib_managed/jars/org.apache.thrift/libthrift/libthrift-0.9.1.jar,$CALDIR/lib_managed/bundles/com.datastax.cassandra/cassandra-driver-core/cassandra-driver-core-2.0.4.jar
-
