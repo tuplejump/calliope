@@ -1,0 +1,17 @@
+val rdd1 = sc.parallelize(1 to 2)
+
+import scala.collection.JavaConversions._
+rdd1.foreach{
+    i => val conf = confBroadcast.value.value
+    conf.iterator().foreach{
+      prop => println(s"${prop.getKey} : ${prop.getValue}")
+    }
+}
+
+
+object Test{
+    def test(){
+      val rdd1 = sc.parallelize(1 to 2)
+      rdd1.foreach(println)
+    }
+}

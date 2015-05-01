@@ -21,21 +21,19 @@ package org.apache.spark.sql.hive
 
 import com.tuplejump.calliope.sql.CassandraAwareSQLContextFunctions
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.catalyst.analysis.{Catalog, OverrideCatalog}
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, LowerCaseSchema}
-import org.apache.spark.sql.{CassandraAwarePlanner, CassandraCatalog, SQLContext}
+import org.apache.spark.sql.catalyst.analysis.OverrideCatalog
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.{CassandraAwarePlanner, CassandraCatalog, SQLContext, Strategy}
 
 class CassandraAwareHiveContext(sc: SparkContext) extends HiveContext(sc) with CassandraAwareSQLContextFunctions {
   self =>
 
   @transient
   override protected[sql] lazy val catalog = new HiveMetastoreCatalog(this) with HiveCassandraCatalog {
-    override def lookupRelation(
-                                 databaseName: Option[String],
-                                 tableName: String,
-                                 alias: Option[String] = None): LogicalPlan = {
+    override def lookupRelation(tableIdentifier: Seq[String],
+                                alias: Option[String] = None): LogicalPlan = {
 
-      LowerCaseSchema(super.lookupRelation(databaseName, tableName, alias))
+      super.lookupRelation(tableIdentifier, alias)
     }
 
     override protected val context: SQLContext with CassandraAwareSQLContextFunctions = self
@@ -71,11 +69,10 @@ class CassandraAwareHiveContext(sc: SparkContext) extends HiveContext(sc) with C
   override protected[sql] val planner = hivePlanner
 
   trait HiveCassandraCatalog extends CassandraCatalog with OverrideCatalog {
-    override def registerTable(databaseName: Option[String], tableName: String, plan: LogicalPlan): Unit = {
-      logInfo(s"REGISTERING TABLE WITH DB [$databaseName] AND TABLE [$tableName]")
-      val (db, tbl) = getDbAndTable(databaseName, tableName)
-      logInfo(s"INTERPRETED AS DB [$db] AND TABLE [$tbl]")
-      super.registerTable(db, tbl, plan)
+    override def registerTable(tableIdentifier: Seq[String], plan: LogicalPlan): Unit = {
+      logInfo(s"REGISTERING TABLE: $tableIdentifier")
+      super.registerTable(tableIdentifier, plan)
     }
   }
+
 }

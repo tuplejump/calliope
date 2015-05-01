@@ -410,7 +410,7 @@ public class CqlRecordReader extends RecordReader<Long, Row>
             Row row = getNextRow();
 
             if (row == null) {
-                logger.info("Processed {} rows in {} token ranges from {} assigned ranges", currentRow, currentRange, tokenRanges.length);
+                logger.info("Processed {} rows in {} token ranges from {} assigned ranges", new Object[]{currentRow, currentRange, tokenRanges.length});
                 logger.info("in {} nano seconds", System.nanoTime() - startTime);
                 //logger.info("CASSANDRA ROW FETCH TIME:" +  rowFetchTime / 1000000 + " milliseconds");
                 logger.info("Done processing all ranges!");

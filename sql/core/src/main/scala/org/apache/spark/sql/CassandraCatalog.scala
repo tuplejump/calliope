@@ -28,10 +28,16 @@ import org.apache.spark.sql.catalyst.plans.logical.{Subquery, LogicalPlan}
 protected[sql] trait CassandraCatalog extends Catalog with Logging{
   protected def context: SQLContext with CassandraAwareSQLContextFunctions
 
-  abstract override def lookupRelation(mayBeDbName: Option[String], tableRef: String, alias: Option[String]): LogicalPlan = {
+  abstract override def lookupRelation(tableIdentifier: Seq[String], alias: Option[String]): LogicalPlan = {
+    val tableId = getDbTableName(tableIdentifier).split(".")
 
-    logInfo(s"LOOKING UP DB [$mayBeDbName] for CF [$tableRef]")
-    val (databaseName, tableName) = getDbAndTable(mayBeDbName, tableRef)
+    val (databaseName, tableName) = {
+      if(tableId.size > 1){
+        (Some(tableId(1)), tableId(0))
+      } else {
+        (None, tableId(0))
+      }
+    }
     logInfo(s"INTERPRETED AS DB [$databaseName] for CF [$tableName]")
 
     val cassandraProperties = CassandraProperties(context.sparkContext)
@@ -66,17 +72,17 @@ protected[sql] trait CassandraCatalog extends Catalog with Logging{
                   alias.map(a => Subquery(a, tableWithQualifers)).getOrElse(basePlan)
 
                 case null =>
-                  super.lookupRelation(databaseName, tableName, alias)
+                  super.lookupRelation(tableId, alias)
               }
             case null =>
-              super.lookupRelation(databaseName, tableName, alias)
+              super.lookupRelation(tableId, alias)
           }
         }else{
-          super.lookupRelation(databaseName, tableName, alias)
+          super.lookupRelation(tableId, alias)
         }
       case None =>
         //We cannot fetch a table without the keyspace name in cassandra
-        super.lookupRelation(databaseName, tableName, alias)
+        super.lookupRelation(tableId, alias)
     }
   }
 

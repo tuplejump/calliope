@@ -22,7 +22,7 @@ package org.apache.spark.sql
 import com.datastax.driver.core.{DataType => CassandraDataType}
 import com.tuplejump.calliope.Implicits._
 import com.tuplejump.calliope.Types.CQLRowMap
-import org.apache.hadoop.mapreduce.SparkHadoopMapReduceUtil
+import org.apache.spark.mapreduce.SparkHadoopMapReduceUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryNode}

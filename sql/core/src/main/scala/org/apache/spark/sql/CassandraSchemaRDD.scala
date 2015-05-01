@@ -42,7 +42,7 @@ class CassandraSchemaRDD(@transient _sqlContext: SQLContext,
       SparkLogicalPlan(queryExecution.executedPlan)(sqlContext)
     // For various commands (like DDL) and queries with side effects, we force query optimization to
     // happen right away to let these side effects take place eagerly.
-    case _: Command | _: InsertIntoTable | _: InsertIntoCreatedTable | _: WriteToFile =>
+    case _: Command | _: InsertIntoTable | _: WriteToFile =>
       queryExecution.toRdd
       SparkLogicalPlan(queryExecution.executedPlan)(sqlContext)
     case _ =>

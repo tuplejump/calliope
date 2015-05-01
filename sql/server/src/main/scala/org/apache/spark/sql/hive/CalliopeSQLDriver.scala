@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.hive
 
-import java.util.{ArrayList => JArrayList}
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import com.tuplejump.calliope.server.CalliopeSQLEnv
 import org.apache.commons.lang.exception.ExceptionUtils
@@ -73,11 +73,15 @@ class CalliopeSQLDriver(val context: CassandraAwareHiveContext = CalliopeSQLEnv.
 
   override def getSchema: Schema = tableSchema
 
-  override def getResults(res: JArrayList[String]): Boolean = {
+  import scala.collection.JavaConverters._
+
+  override def getResults(res: JList[_]): Boolean = {
     if (hiveResponse == null) {
       false
     } else {
-      res.addAll(hiveResponse)
+      val res1: JArrayList[String] = res.asInstanceOf[JArrayList[String]]
+      res1.add("some")
+      res1.addAll(hiveResponse.asJava)
       hiveResponse = null
       true
     }

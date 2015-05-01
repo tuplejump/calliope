@@ -5,29 +5,19 @@ import sbtassembly.Plugin._
 
 object CalliopeBuild extends Build {
 
-
-  lazy val USE_HADOOP2 = {
-    val envH = System.getenv("USE_HADOOP2")
-    envH != null && envH == "true"
-  }
-
-  lazy val HIVE_VERSION: String = "0.13.1a"
-
-  lazy val VERSION = "1.2.1" + (if(USE_HADOOP2) "-H2" else "") + "-SNAPSHOT"
+  lazy val VERSION = "1.1.0-CTP-U2-SNAPSHOT"
 
   lazy val CAS_VERSION = "2.0.9"
 
   lazy val THRIFT_VERSION = "0.9.1"
 
-  lazy val SCALA_VERSION = "2.10.5" //Updating to 2.10.4 cause of Spark/SBT issue Spark [https://issues.apache.org/jira/browse/SPARK-1923]
+  lazy val SCALA_VERSION = "2.10.4" //Updating to 2.10.4 cause of Spark/SBT issue Spark [https://issues.apache.org/jira/browse/SPARK-1923]
 
   lazy val DS_DRIVER_VERSION = "2.0.4"
 
-  lazy val PARADISE_VERSION = "2.1.0-M5"
+  lazy val PARADISE_VERSION = "2.0.0"
 
-  lazy val SPARK_VERSION = "1.2.1"
-
-  lazy val HADOOP_VERSION = if(USE_HADOOP2) "2.4.0" else "1.0.4"
+  lazy val SPARK_VERSION = "1.1.0"
 
   lazy val pom = {
     <scm>
@@ -51,17 +41,16 @@ object CalliopeBuild extends Build {
     "com.datastax.cassandra" % "cassandra-driver-core" % DS_DRIVER_VERSION intransitive(),
     "org.apache.spark" %% "spark-core" % SPARK_VERSION % "provided" exclude("org.apache.hadoop", "hadoop-core"),
     "org.apache.spark" %% "spark-streaming" % SPARK_VERSION % "provided",
-    "org.apache.hadoop" % "hadoop-client" % HADOOP_VERSION % "provided",
+    "org.apache.hadoop" % "hadoop-client" % "1.0.4" % "provided",
     "com.github.nscala-time" %% "nscala-time" % "1.0.0",
-    "org.scalatest" %% "scalatest" % "1.9.1" % "test",
-    "org.json4s" %% "json4s-jackson" % "3.2.10" % "provided"
+    "org.scalatest" %% "scalatest" % "1.9.1" % "test"
   )
 
   val commonSettings = Project.defaultSettings ++ Seq(
     organization := "com.tuplejump",
     version := VERSION,
     scalaVersion := SCALA_VERSION,
-    scalacOptions := "-deprecation" :: "-unchecked" :: "-feature" :: "-language:implicitConversions" :: Nil,
+    scalacOptions := "-deprecation" :: "-unchecked" :: "-feature" :: Nil,
     parallelExecution in Test := false,
     pomExtra := pom,
     publishArtifact in Test := false,
@@ -83,8 +72,7 @@ object CalliopeBuild extends Build {
     organizationHomepage := Some(url("http://www.tuplejump.com")),
     resolvers ++= Seq("Akka Repository" at "http://repo.akka.io/releases/"),
     fork in Test := true,
-    test in assembly := {},
-    retrieveManaged := true
+    test in assembly := {}
   ) ++ net.virtualvoid.sbt.graph.Plugin.graphSettings
 
   lazy val macros: Project = Project(
@@ -102,7 +90,7 @@ object CalliopeBuild extends Build {
   )
 
   lazy val calliope = {
-    val calliopeSettings = assemblySettings ++ commonSettings ++ Seq(
+    val calliopeSettings = commonSettings ++ Seq(
       name := "calliope-core",
       libraryDependencies ++= dependencies
       //javaOptions in Test := Seq("-Xdebug", "-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"),
@@ -118,7 +106,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeSql: Project = Project(
     id = "calliope-sql",
     base = file("sql/core"),
-    settings = assemblySettings ++ commonSettings ++ Seq(
+    settings = assemblySettings ++ commonSettings ++  Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq("org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided")
     )
@@ -127,7 +115,7 @@ object CalliopeBuild extends Build {
   lazy val calliopeHive: Project = Project(
     id = "calliope-hive",
     base = file("sql/hive"),
-    settings = assemblySettings ++ commonSettings ++ Seq(
+    settings = assemblySettings ++ commonSettings ++  Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq(
         "org.apache.spark" %% "spark-sql" % SPARK_VERSION % "provided",
@@ -138,13 +126,13 @@ object CalliopeBuild extends Build {
     )
   ) dependsOn (calliopeSql)
 
-  /* lazy val calliopeServer: Project = Project(
+  lazy val calliopeServer: Project = Project(
     id = "calliope-server",
     base = file("sql/server"),
     settings = assemblySettings ++ commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= dependencies ++ Seq(
-        "org.spark-project.hive" % "hive-cli" % HIVE_VERSION exclude("org.jboss.netty", "netty")
+        "org.spark-project.hive" % "hive-cli" % "0.12.0" exclude("org.jboss.netty", "netty")
           exclude("commons-beanutils", "commons-beanutils-core")
           exclude("commons-collections", "commons-collections")
           exclude("commons-logging", "commons-logging-api")
@@ -159,37 +147,22 @@ object CalliopeBuild extends Build {
           exclude("commons-logging", "commons-logging-api")
       )
     )
-  ) dependsOn (calliopeHive) */
-
-  val hiveExcludes = Seq(ExclusionRule(organization = "org.jboss.netty", artifact = "netty"),
-    ExclusionRule(organization = "io.netty", artifact = "netty"),
-    ExclusionRule(organization = "commons-beanutils", artifact = "commons-beanutils-core"),
-    ExclusionRule(organization = "commons-collections", artifact = "commons-collections"),
-    ExclusionRule(organization = "commons-logging", artifact = "commons-logging-api"),
-    ExclusionRule(organization = "org.datanucleus"))
+  ) dependsOn (calliopeHive)
 
   lazy val jdbcDriver: Project = Project(
-    id = "calliope-jdbc",
-    base = file("sql/jdbc"),
-    settings = assemblySettings ++ commonSettings ++ Seq(
+    id="calliope-jdbc",
+    base=file("sql/jdbc"),
+    settings = assemblySettings ++  commonSettings ++ Seq(
       version := VERSION,
       libraryDependencies ++= Seq(
-        "org.spark-project.hive" % "hive-jdbc" % HIVE_VERSION intransitive(),
-        "org.spark-project.hive" % "hive-cli" % HIVE_VERSION intransitive(),
-        "org.spark-project.hive" % "hive-common" % HIVE_VERSION intransitive(),
-        "org.spark-project.hive" % "hive-service" % HIVE_VERSION intransitive(),
-        "org.spark-project.hive" % "hive-shims" % HIVE_VERSION intransitive(),
-        "commons-logging" % "commons-logging" % "1.1.3" intransitive(),
-        "org.apache.hadoop" % "hadoop-common" % "2.0.5-alpha" intransitive(),
-        "org.apache.httpcomponents" % "httpclient" % "4.2.5" intransitive(),
-        "org.apache.httpcomponents" % "httpcore" % "4.2.5" intransitive(),
-        "org.apache.httpcomponents" % "httpcore" % "4.2.5" intransitive(),
-        "org.apache.thrift" % "libthrift" % "0.9.1" intransitive(),
-        "org.slf4j" % "slf4j-api" % "1.7.7" intransitive()
+        "org.spark-project.hive" % "hive-jdbc" % "0.12.0" exclude("org.jboss.netty", "netty")
+          exclude("commons-beanutils", "commons-beanutils-core")
+          exclude("commons-collections", "commons-collections")
+          exclude("commons-logging", "commons-logging-api")
+          excludeAll (ExclusionRule(organization = "org.datanucleus"))
       )
     )
   )
 
-  val root = Project("calliope-root", base = file("."), settings = commonSettings).aggregate(macros, calliope, calliopeSql, calliopeHive, /* calliopeServer, */ jdbcDriver)
-
+  val root = Project("calliope-root", base = file("."), settings = commonSettings).aggregate(macros, calliope, calliopeSql, calliopeHive, calliopeServer, jdbcDriver)
 }

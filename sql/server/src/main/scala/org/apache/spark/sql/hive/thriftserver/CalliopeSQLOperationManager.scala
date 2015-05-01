@@ -25,22 +25,19 @@ import com.datastax.driver.core.KeyspaceMetadata
 import com.tuplejump.calliope.server.ReflectionUtils
 import com.tuplejump.calliope.sql.{CassandraProperties, CassandraSchemaHelper}
 import org.apache.hadoop.hive.common.`type`.HiveDecimal
-import org.apache.hadoop.hive.metastore.TableType
 import org.apache.hadoop.hive.metastore.api.FieldSchema
 import org.apache.hive.service.cli._
 import org.apache.hive.service.cli.operation._
 import org.apache.hive.service.cli.session.HiveSession
-import org.apache.hive.service.cli.thrift.TColumnValue
 import org.apache.spark.Logging
 import org.apache.spark.sql.catalyst.plans.logical.SetCommand
 import org.apache.spark.sql.catalyst.types._
 import org.apache.spark.sql.hive.{HiveContext, HiveMetastoreTypes}
-import org.apache.spark.sql.{SQLConf, SchemaRDD, Row => SparkRow}
+import org.apache.spark.sql.{Row => SparkRow, SQLConf, SchemaRDD}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.{ArrayBuffer, Map}
 import scala.math.{random, round}
-import scala.util.matching.Regex
 
 /**
  * Executes queries using Spark SQL, and maintains a list of handles to active queries.
@@ -55,10 +52,10 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
   val sessionToActivePool = Map[HiveSession, String]()
 
   override def newExecuteStatementOperation(
-      parentSession: HiveSession,
-      statement: String,
-      confOverlay: JMap[String, String],
-      async: Boolean): ExecuteStatementOperation = synchronized {
+                                             parentSession: HiveSession,
+                                             statement: String,
+                                             confOverlay: JMap[String, String],
+                                             async: Boolean): ExecuteStatementOperation = synchronized {
 
     val operation = new ExecuteStatementOperation(parentSession, statement, confOverlay) {
       private var result: SchemaRDD = _
@@ -111,9 +108,9 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
             to.addColumnValue(ColumnValue.doubleValue(from.getDouble(ordinal)))
           case FloatType =>
             to.addColumnValue(ColumnValue.floatValue(from.getFloat(ordinal)))
-          case DecimalType =>
+          case DecimalType() =>
             val hiveDecimal = from.get(ordinal).asInstanceOf[BigDecimal].bigDecimal
-            to.addColumnValue(ColumnValue.stringValue(new HiveDecimal(hiveDecimal)))
+            to.addColumnValue(ColumnValue.stringValue(HiveDecimal.create(hiveDecimal)))
           case LongType =>
             to.addColumnValue(ColumnValue.longValue(from.getLong(ordinal)))
           case ByteType =>
@@ -124,10 +121,11 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
             to.addColumnValue(
               ColumnValue.timestampValue(from.get(ordinal).asInstanceOf[Timestamp]))
           case BinaryType | _: ArrayType | _: StructType | _: MapType =>
-            val hiveString = result
+            /*val hiveString = result
               .queryExecution
               .asInstanceOf[HiveContext#QueryExecution]
-              .toHiveString((from.get(ordinal), dataTypes(ordinal)))
+              .toHiveString((from.get(ordinal), dataTypes(ordinal)))*/
+            val hiveString = HiveContext.toHiveString((from.get(ordinal), dataTypes(ordinal)))
             to.addColumnValue(ColumnValue.stringValue(hiveString))
         }
       }
@@ -144,7 +142,7 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
             to.addColumnValue(ColumnValue.doubleValue(null))
           case FloatType =>
             to.addColumnValue(ColumnValue.floatValue(null))
-          case DecimalType =>
+          case DecimalType() =>
             to.addColumnValue(ColumnValue.stringValue(null: HiveDecimal))
           case LongType =>
             to.addColumnValue(ColumnValue.longValue(null))
@@ -178,9 +176,13 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
           result = hiveContext.sql(statement)
           logDebug(result.queryExecution.toString())
           result.queryExecution.logical match {
-            case SetCommand(Some(key), Some(value)) if (key == SQLConf.THRIFTSERVER_POOL) =>
-              sessionToActivePool(parentSession) = value
-              logInfo(s"Setting spark.scheduler.pool=$value for future statements in this session.")
+            case SetCommand(Some(kv)) if (kv._1 == SQLConf.THRIFTSERVER_POOL) =>
+              kv._2 match {
+                case Some(value) =>
+                  sessionToActivePool(parentSession) = value
+                  logInfo(s"Setting spark.scheduler.pool=$value for future statements in this session.")
+                case _ =>
+              }
             case _ =>
           }
 
@@ -205,19 +207,19 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
           // Actually do need to catch Throwable as some failures don't inherit from Exception and
           // HiveServer will silently swallow them.
           case e: Throwable =>
-            logError("Error executing query:",e)
+            logError("Error executing query:", e)
             throw new HiveSQLException(e.toString)
         }
         setState(OperationState.FINISHED)
       }
     }
 
-   handleToOperation.put(operation.getHandle, operation)
-   operation
+    handleToOperation.put(operation.getHandle, operation)
+    operation
   }
 
   override def newGetCatalogsOperation(parentSession: HiveSession): GetCatalogsOperation = {
-    val operation: GetCatalogsOperation = new GetCatalogsOperation(parentSession){
+    val operation: GetCatalogsOperation = new GetCatalogsOperation(parentSession) {
       override def run(): Unit = {
         println("Running GetCatalogsOperation")
         super.run()
@@ -233,7 +235,7 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
   }
 
   override def newGetSchemasOperation(parentSession: HiveSession, catalogName: String, schemaName: String): GetSchemasOperation = {
-    val operation: GetSchemasOperation = new GetSchemasOperation(parentSession, catalogName, schemaName){
+    val operation: GetSchemasOperation = new GetSchemasOperation(parentSession, catalogName, schemaName) {
       val schemaNameI = schemaName
       private val RESULT_SET_SCHEMA = ReflectionUtils.getSuperField[TableSchema](this, "RESULT_SET_SCHEMA")
 
@@ -243,9 +245,9 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
         val rowSet = ReflectionUtils.getSuperField[RowSet](this, "rowSet")
         val rows = ReflectionUtils.getPrivateField[util.ArrayList[Row]](rowSet, "rows")
         printRows(rows)
-        val patternString:String = if(schemaNameI.isEmpty){
+        val patternString: String = if (schemaNameI.isEmpty) {
           "(.*)"
-        } else{
+        } else {
           val subpatterns: Array[String] = convertPattern(schemaNameI).trim.split("\\|")
           s"(?i)(${subpatterns.mkString(" || ")})"
         }
@@ -261,7 +263,7 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
           cassandraProperties.cassandraUsername,
           cassandraProperties.cassandraPassword)
 
-        if(cassandraMeta != null){
+        if (cassandraMeta != null) {
           cassandraMeta.getKeyspaces.map(_.getName).foreach {
             case pattern(dbname) =>
               println(s"Adding $dbname")
@@ -284,9 +286,9 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
   }
 
   private def convertPattern(pattern: String): String = {
-  val wStr = ".*"
-  pattern.replaceAll("([^\\\\])%", "$1" + wStr).replaceAll("\\\\%", "%").replaceAll("^%", wStr)
-}
+    val wStr = ".*"
+    pattern.replaceAll("([^\\\\])%", "$1" + wStr).replaceAll("\\\\%", "%").replaceAll("^%", wStr)
+  }
 
   override def newGetTablesOperation(parentSession: HiveSession, catalogName: String, schemaName: String, tableName: String, tableTypes: util.List[String]): MetadataOperation = {
     val operation: MetadataOperation = new GetTablesOperation(parentSession, catalogName, schemaName, tableName, tableTypes) {
@@ -302,9 +304,9 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
         val rows = ReflectionUtils.getPrivateField[java.util.ArrayList[Row]](rowSet, "rows")
         printRows(rows)
 
-        val schemaPattern = if(schemaNameI.isEmpty){
+        val schemaPattern = if (schemaNameI.isEmpty) {
           "(.*)"
-        } else{
+        } else {
           val subpatterns: Array[String] = convertPattern(schemaNameI).trim.split("\\|")
           s"(?i)(${subpatterns.mkString(" || ")})"
         }
@@ -318,9 +320,9 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
           cassandraProperties.cassandraPassword)
 
         if (cassandraMeta != null) {
-          val tablePattern = if(tableNameI == null || tableNameI.isEmpty){
+          val tablePattern = if (tableNameI == null || tableNameI.isEmpty) {
             "(.*)"
-          } else{
+          } else {
             val subpatterns: Array[String] = convertPattern(schemaNameI).trim.split("\\|")
             s"(?i)(${subpatterns.mkString(" || ")})"
           }
@@ -351,7 +353,7 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
   }
 
   override def newGetTableTypesOperation(parentSession: HiveSession): GetTableTypesOperation = {
-    val operation: GetTableTypesOperation = new GetTableTypesOperation(parentSession){
+    val operation: GetTableTypesOperation = new GetTableTypesOperation(parentSession) {
       private val RESULT_SET_SCHEMA = ReflectionUtils.getSuperField[TableSchema](this, "RESULT_SET_SCHEMA")
 
       override def run(): Unit = {
@@ -370,16 +372,16 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
   }
 
   override def newGetColumnsOperation(parentSession: HiveSession, catalogName: String, schemaName: String, tableName: String, columnName: String): GetColumnsOperation = {
-    val operation: GetColumnsOperation = new GetColumnsOperation(parentSession, catalogName, schemaName, tableName, columnName){
+    val operation: GetColumnsOperation = new GetColumnsOperation(parentSession, catalogName, schemaName, tableName, columnName) {
       private val RESULT_SET_SCHEMA = ReflectionUtils.getSuperField[TableSchema](this, "RESULT_SET_SCHEMA")
 
       override def run(): Unit = {
         println(s"Running GetColumnsOperation $schemaName : $tableName")
 
-        val keyspace = if(schemaName == null || schemaName.isEmpty || schemaName.equals("*")) {
+        val keyspace = if (schemaName == null || schemaName.isEmpty || schemaName.equals("*")) {
           val splits = tableName.split("\\.")
           splits(0)
-        }else {
+        } else {
           schemaName
         }
         println(s"Checking keyspace: $keyspace")
@@ -391,42 +393,42 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
           cassandraProperties.cassandraUsername,
           cassandraProperties.cassandraPassword)
 
-        val keyspaceMeta: KeyspaceMetadata = if(cassandraMeta != null) cassandraMeta.getKeyspace(keyspace) else null
+        val keyspaceMeta: KeyspaceMetadata = if (cassandraMeta != null) cassandraMeta.getKeyspace(keyspace) else null
         println(keyspaceMeta)
         if (keyspaceMeta != null) {
           val rowSet = new RowSet()
-          val tableStr = if(tableName.contains(".")) tableName.split("\\.")(1) else tableName
+          val tableStr = if (tableName.contains(".")) tableName.split("\\.")(1) else tableName
           setState(OperationState.RUNNING)
           val table = keyspaceMeta.getTable(tableStr)
 
           table.getColumns.zipWithIndex.foreach {
             case (column, idx) =>
-            val rowData: Array[AnyRef] = Array(
-              null,
-              "",
-              s"$keyspace.$tableStr",
-              column.getName,
-              toJavaSqlType(column.getType),
-              column.getType.getName.toString,
-              getTypeSize(column.getType),
-              null,
-              getDecimalDigits(column.getType),
-              getNumPrecRadix(column.getType),
-              new Integer(DatabaseMetaData.columnNullable),
-              "",
-              null,
-              null,
-              null,
-              null,
-              new Integer(idx),
-              "YES",
-              null,
-              null,
-              null,
-              null,
-              "NO")
+              val rowData: Array[AnyRef] = Array(
+                null,
+                "",
+                s"$keyspace.$tableStr",
+                column.getName,
+                toJavaSqlType(column.getType),
+                column.getType.getName.toString,
+                getTypeSize(column.getType),
+                null,
+                getDecimalDigits(column.getType),
+                getNumPrecRadix(column.getType),
+                new Integer(DatabaseMetaData.columnNullable),
+                "",
+                null,
+                null,
+                null,
+                null,
+                new Integer(idx),
+                "YES",
+                null,
+                null,
+                null,
+                null,
+                "NO")
 
-            rowSet.addRow(RESULT_SET_SCHEMA, rowData)
+              rowSet.addRow(RESULT_SET_SCHEMA, rowData)
           }
 
           ReflectionUtils.setSuperField(this, "rowSet", rowSet)
@@ -444,6 +446,7 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
   }
 
   import com.datastax.driver.core.{DataType => CassandraDataType}
+
   private def toJavaSqlType(dataType: CassandraDataType): Integer = {
     dataType.getName match {
       case CassandraDataType.Name.ASCII => java.sql.Types.VARCHAR
@@ -491,7 +494,6 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
     }
   }
 
-
   private def getPrecision(dataType: CassandraDataType): Integer = {
     dataType.getName match {
       case CassandraDataType.Name.INT => 10
@@ -531,5 +533,4 @@ class CalliopeSQLOperationManager(hiveContext: HiveContext)
       case _ => null
     }
   }
-
 }

@@ -19,13 +19,13 @@
 
 package org.apache.spark.sql
 
-import com.datastax.driver.core.{Cluster, KeyspaceMetadata, Metadata, TableMetadata, DataType => CassanndraDataType}
+import com.datastax.driver.core.{TableMetadata}
 import com.tuplejump.calliope.sql.{CalliopeSqlSettings, CassandraSchemaHelper}
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.Logging
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.logical.LeafNode
+import org.apache.spark.sql.catalyst.plans.logical.{Statistics, LeafNode}
 
 import scala.collection.JavaConversions._
 

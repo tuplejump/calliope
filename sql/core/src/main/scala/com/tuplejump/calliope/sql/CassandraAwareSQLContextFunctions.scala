@@ -132,7 +132,7 @@ trait CassandraAwareSQLContextFunctions {
             val tableName: String = table.getName
             val casRdd = cassandraTable(host, port, ksName, tableName, username, password, mayUseStargate)
 
-            self.catalog.unregisterTable(None, s"$ksName.$tableName")
+            self.catalog.unregisterTable(Seq(s"$ksName.$tableName"))
             casRdd.registerTempTable(s"$ksName.$tableName")
 
             logInfo(s"Registered C* table: $ksName.$tableName")

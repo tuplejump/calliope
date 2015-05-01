@@ -19,7 +19,7 @@
 
 package org.apache.spark.sql
 
-import com.datastax.driver.core.{Cluster, KeyspaceMetadata, Metadata, TableMetadata, DataType => CassandraDataType}
+import com.datastax.driver.core.{TableMetadata, DataType => CassandraDataType}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.types.{DataType => CatalystDataType, _}
 
@@ -96,12 +96,12 @@ private[sql] object CassandraTypeConverter {
       case CassandraDataType.Name.BLOB => BinaryType
       case CassandraDataType.Name.BOOLEAN => BooleanType
       case CassandraDataType.Name.COUNTER => LongType
-      case CassandraDataType.Name.DECIMAL => DecimalType
+      case CassandraDataType.Name.DECIMAL => DecimalType()
       case CassandraDataType.Name.DOUBLE => DoubleType
       case CassandraDataType.Name.FLOAT => FloatType
       case CassandraDataType.Name.INT => IntegerType
       case CassandraDataType.Name.TEXT => StringType
-      case CassandraDataType.Name.VARINT => DecimalType //Big Integer is treated as BigDecimal by Catalyst
+      case CassandraDataType.Name.VARINT => DecimalType() //Big Integer is treated as BigDecimal by Catalyst
       case CassandraDataType.Name.INET => StringType //TODO: Stopgap solution
       case CassandraDataType.Name.UUID => StringType //TODO: Stopgap solution
       case CassandraDataType.Name.TIMEUUID => StringType //TODO: Stopgap solution

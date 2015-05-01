@@ -55,11 +55,9 @@ class CassandraAwareSQLContext(sc: SparkContext) extends SQLContext(sc) with Cas
   }
 
   trait SQLCassandraCatalog extends CassandraCatalog with OverrideCatalog {
-    override def registerTable(databaseName: Option[String], tableName: String, plan: LogicalPlan): Unit = {
-      logInfo(s"REGISTERING TABLE WITH DB [$databaseName] AND TABLE [$tableName]")
-      val (db, tbl) = getDbAndTable(databaseName, tableName)
-      logInfo(s"INTERPRETED AS DB [$db] AND TABLE [$tbl]")
-      super.registerTable(db, tbl, plan)
+    override def registerTable(tableIdentifier: Seq[String], plan: LogicalPlan): Unit = {
+      logInfo(s"REGISTERING TABLE $tableIdentifier")
+      super.registerTable(tableIdentifier, plan)
     }
   }
 
